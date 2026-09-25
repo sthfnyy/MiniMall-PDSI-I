@@ -12,7 +12,7 @@ Este diretório contém a implementação do backend necessária para as funcion
 * PostgreSQL
 * Supabase
 * Pydantic
-* Alembic (estrutura preparada para versionamento de alterações do banco)
+* Scripts SQL versionados para criação e configuração inicial do banco
 
 ## Estrutura
 
