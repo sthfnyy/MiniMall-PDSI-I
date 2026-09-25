@@ -19,8 +19,7 @@ async def listar_lojas(
     db: AsyncSession = Depends(get_db),
     _admin: Profile = Depends(require_admin),
 ):
-    """Lista lojas para moderação. Sem filtro, retorna todas; use
-    ?status_filtro=pendente para a fila de aprovação."""
+
     query = select(Loja).order_by(Loja.criado_em.desc())
     if status_filtro is not None:
         query = query.where(Loja.status == status_filtro)

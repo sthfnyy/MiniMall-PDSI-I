@@ -20,18 +20,14 @@ SUPABASE_JWKS_URL = (
 async def get_current_user_id(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> uuid.UUID:
-    """Valida o JWT ES256 emitido pelo Supabase Auth."""
-
     token = credentials.credentials
 
     try:
-        # Busca as chaves públicas do Supabase
         async with httpx.AsyncClient() as client:
             response = await client.get(SUPABASE_JWKS_URL)
             response.raise_for_status()
             jwks = response.json()
 
-        # Descobre qual chave corresponde ao 'kid' do token
         header = jwt.get_unverified_header(token)
         kid = header.get("kid")
 
@@ -43,7 +39,7 @@ async def get_current_user_id(
         if key is None:
             raise JWTError("Chave pública correspondente ao kid não encontrada")
 
-        # Valida assinatura e claims
+
         payload = jwt.decode(
             token,
             key,
@@ -96,8 +92,6 @@ async def get_current_profile(
 async def require_admin(
     profile: Profile = Depends(get_current_profile),
 ) -> Profile:
-    """Permite acesso às rotas administrativas somente para admins."""
-
     if profile.role != UserRole.admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

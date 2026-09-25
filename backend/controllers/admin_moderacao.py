@@ -31,8 +31,7 @@ async def remover_avaliacao(
     db: AsyncSession = Depends(get_db),
     _admin: Profile = Depends(require_admin),
 ):
-    """Remove a avaliação inteira (e suas fotos extras, via ON DELETE CASCADE).
-    Também apaga a foto obrigatória, pois ela é uma coluna da própria linha."""
+
     result = await db.execute(delete(Avaliacao).where(Avaliacao.id == avaliacao_id))
     if result.rowcount == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avaliação não encontrada")
@@ -45,8 +44,7 @@ async def remover_foto_extra(
     db: AsyncSession = Depends(get_db),
     _admin: Profile = Depends(require_admin),
 ):
-    """Remove só uma foto extra (tabela avaliacao_fotos), mantendo o resto
-    da avaliação — útil quando apenas uma foto específica viola as regras."""
+    
     result = await db.execute(delete(AvaliacaoFoto).where(AvaliacaoFoto.id == foto_id))
     if result.rowcount == 0:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Foto não encontrada")

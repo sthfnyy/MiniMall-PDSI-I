@@ -75,7 +75,6 @@ async def excluir_categoria(
         await db.delete(categoria)
         await db.commit()
     except IntegrityError:
-        # produtos.categoria_id tem ON DELETE RESTRICT no schema
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
