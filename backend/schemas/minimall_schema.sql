@@ -1,5 +1,3 @@
-
-
 create extension if not exists pgcrypto;
 
 
@@ -7,7 +5,7 @@ create type public.user_role as enum ('admin', 'lojista', 'consumidor');
 create type public.tipo_transacao_pontos as enum ('credito', 'resgate');
 create type public.status_loja as enum ('pendente', 'aprovada', 'rejeitada');
 
-
+create table public.profiles (
     id              uuid primary key references auth.users(id) on delete cascade,
     role            public.user_role not null default 'consumidor',
     nome_completo   text not null,
@@ -93,26 +91,6 @@ create table public.categorias (
     criado_em   timestamptz not null default now()
 );
 
-create table public.visualizacoes (
-    id          uuid primary key default gen_random_uuid(),
-    produto_id  uuid references public.produtos(id) on delete cascade,
-    loja_id     uuid references public.lojas(id) on delete cascade,
-    usuario_id  uuid references auth.users(id) on delete set null,
-    criado_em   timestamptz not null default now(),
-
-    check (produto_id is not null or loja_id is not null)
-);
-
-create index idx_visualizacoes_produto
-    on public.visualizacoes (produto_id);
-
-create index idx_visualizacoes_loja
-    on public.visualizacoes (loja_id);
-
-create index idx_visualizacoes_criado_em
-    on public.visualizacoes (criado_em);
-
-    
 create table public.produtos (
     id                  uuid primary key default gen_random_uuid(),
     loja_id             uuid not null references public.lojas(id) on delete cascade,
@@ -125,6 +103,27 @@ create table public.produtos (
     criado_em           timestamptz not null default now(),
     atualizado_em       timestamptz not null default now()
 );
+
+create table public.visualizacoes (
+    id          uuid primary key default gen_random_uuid(),
+    produto_id  uuid references public.produtos(id) on delete cascade,
+    loja_id     uuid references public.lojas(id) on delete cascade,
+    usuario_id  uuid references auth.users(id) on delete set null,
+    criado_em   timestamptz not null default now(),
+
+    check (produto_id is not null or loja_id is not null)
+);
+
+
+create index idx_visualizacoes_produto
+    on public.visualizacoes (produto_id);
+
+create index idx_visualizacoes_loja
+    on public.visualizacoes (loja_id);
+
+create index idx_visualizacoes_criado_em
+    on public.visualizacoes (criado_em);
+
 
 create index idx_produtos_loja on public.produtos (loja_id);
 create index idx_produtos_categoria on public.produtos (categoria_id);
@@ -253,6 +252,7 @@ alter table public.favoritos enable row level security;
 alter table public.avaliacoes enable row level security;
 alter table public.avaliacao_fotos enable row level security;
 alter table public.pontos_transacoes enable row level security;
+alter table public.visualizacoes enable row level security;
 
 
 create function public.is_admin()
