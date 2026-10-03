@@ -79,57 +79,18 @@ export default function ConsumerPoints({ user, data, go }) {
       {userTransactions.length > 0 ? (
         <>
           {/* SEÇÃO 1 — SALDO TOTAL */}
-          <div
-            className="dashboard-stats"
-            style={{ gridTemplateColumns: "1fr", marginBottom: "28px" }}
-          >
-            <div
-              className="stat"
-              style={{
-                padding: "26px",
-                display: "flex",
-                alignItems: "center",
-                gap: "22px",
-              }}
-            >
-              <div
-                style={{
-                  width: "56px",
-                  height: "56px",
-                  borderRadius: "50%",
-                  background: "#d6e2c4",
-                  display: "grid",
-                  placeItems: "center",
-                  color: "#3b4e23",
-                  flexShrink: 0,
-                }}
-              >
-                <Coins size={30} />
-              </div>
-              <div>
-                <span
-                  style={{
-                    textTransform: "uppercase",
-                    fontSize: "12px",
-                    letterSpacing: "1px",
-                    fontWeight: "600",
-                    color: "var(--muted)",
-                  }}
-                >
-                  MEUS PONTOS
-                </span>
-                <strong
-                  style={{
-                    display: "block",
-                    fontSize: "36px",
-                    marginTop: "4px",
-                    color: "var(--ink)",
-                  }}
-                >
-                  {formatPoints(totalPoints)}{" "}
-                  {Math.abs(totalPoints) === 1 ? "ponto" : "pontos"}
-                </strong>
-              </div>
+           <div className="consumer-points-summary">
+            <div className="consumer-points-icon">
+              <Coins size={30} />
+            </div>
+
+            <div className="consumer-points-content">
+              <span>MEUS PONTOS</span>
+
+              <strong>
+                {formatPoints(totalPoints)}{" "}
+                {Math.abs(totalPoints) === 1 ? "ponto" : "pontos"}
+              </strong>
             </div>
           </div>
 
