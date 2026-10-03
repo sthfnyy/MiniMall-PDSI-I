@@ -23,12 +23,14 @@ import ConsumerProfile from "./views/consumer/ConsumerProfile";
 import ConsumerFavorites from "./views/consumer/ConsumerFavorites";
 import ConsumerPoints from "./views/consumer/ConsumerPoints";
 import ConsumerReviews from "./views/consumer/ConsumerReviews";
+import ReviewForm from "./views/consumer/ReviewForm";
 
 import StoreCard from "./components/StoreCard";
 import { Modal, Empty } from "./components/ui";
 
 import { money, price } from "./services/catalog";
 import { loadData, saveData } from "./services/storage";
+import { publishReview } from "./services/reviews";
 
 const emptyFilters = {
   query: "",
@@ -135,6 +137,10 @@ export default function App() {
 
   const store = approved.find(
     (s) => route === `loja/${s.id}`,
+  );
+
+  const reviewStore = approved.find(
+    (s) => route === `consumidor/avaliar/${s.id}`,
   );
 
   const onProduct = (p) =>
@@ -436,6 +442,10 @@ export default function App() {
             onProduct={onProduct}
             onStore={onStore}
             go={go}
+            user={user}
+            onReview={(selectedStore) =>
+              go(`consumidor/avaliar/${selectedStore.id}`)
+            }
             isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
           />
@@ -608,6 +618,39 @@ export default function App() {
             />
           ))}
 
+        {/* CRIAÇÃO DE AVALIAÇÃO */}
+        {reviewStore &&
+          (user?.role === "consumidor" ? (
+            <ReviewForm
+              store={reviewStore}
+              onCancel={() => go(`loja/${reviewStore.id}`)}
+              onPublish={(values) => {
+                const nextData = structuredClone(data);
+                publishReview(nextData, {
+                  ...values,
+                  user,
+                  store: reviewStore,
+                });
+                setData(nextData);
+                setToast("Avaliação publicada com sucesso.");
+                go(`loja/${reviewStore.id}`);
+              }}
+            />
+          ) : (
+            <Empty
+              title="Acesso restrito"
+              text="Entre com uma conta de consumidor."
+              action={
+                <button
+                  className="primary"
+                  onClick={() => go("login")}
+                >
+                  Entrar
+                </button>
+              }
+            />
+          ))}
+
         {/* ADMINISTRAÇÃO */}
         {route === "admin" &&
           (user?.role === "administrador" ? (
@@ -645,7 +688,8 @@ export default function App() {
           "consumidor/avaliacoes",
         ].includes(route) &&
           !product &&
-          !store && (
+          !store &&
+          !reviewStore && (
             <Empty
               title="Página não encontrada"
               text="O produto ou a loja não está disponível."

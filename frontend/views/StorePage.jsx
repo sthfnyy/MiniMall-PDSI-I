@@ -2,6 +2,7 @@ import React from "react";
 import { MapPin, Clock, Navigation, Star, ArrowUpRight } from "lucide-react";
 import ProductCard from "../components/ProductCard";
 import { rating } from "../services/catalog";
+import { getStoreReviews } from "../services/reviews";
 import StoreIdentity, { storeIdentity } from "../components/StoreIdentity";
 export default function StorePage({
   store: s,
@@ -9,12 +10,14 @@ export default function StorePage({
   onProduct,
   onStore,
   go,
+  user,
+  onReview,
   isFavorite,
   onToggleFavorite,
 }) {
   const identity = storeIdentity(s.id);
   const products = data.products.filter((p) => p.store === s.id && !p.deleted),
-    reviews = data.reviews.filter((r) => r.store === s.id);
+    reviews = getStoreReviews(data.reviews, s.id);
   return (
     <>
       <button className="back-link" onClick={() => go("lojas")}>
@@ -87,7 +90,15 @@ export default function StorePage({
         <p>Nenhum produto publicado.</p>
       )}
       <section className="review-section">
-        <h2>Avaliações</h2>
+        <div className="section-heading">
+          <h2>Avaliações</h2>
+          {user?.role === "consumidor" && (
+            <button className="primary" type="button" onClick={() => onReview(s)}>
+              <Star size={17} />
+              Avaliar esta loja
+            </button>
+          )}
+        </div>
         {reviews.length ? (
           <div className="review-list">
             {reviews.map((r) => (

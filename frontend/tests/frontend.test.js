@@ -9,7 +9,11 @@ import {
   moderateReview,
 } from "../services/admin.js";
 import { whatsappLink } from "../services/contact.js";
-import { getUserReviews } from "../services/reviews.js";
+import {
+  getStoreReviews,
+  getUserReviews,
+  publishReview,
+} from "../services/reviews.js";
 const fresh = () => structuredClone(seed);
 test("vitrine combina busca sem acentos, loja, categoria e preço", () => {
   assert.deepEqual(
@@ -235,6 +239,70 @@ test("minhas avaliações filtra pelo consumidor e ordena da mais recente", () =
   assert.deepEqual(
     getUserReviews(sameUser, "sample1").map((review) => review.id),
     [103, 102, 101],
+  );
+});
+
+test("publicação cria avaliação vinculada e crédito mock de 10 pontos", () => {
+  const data = fresh();
+  const user = data.users.find((item) => item.id === "consumer");
+  const store = data.stores.find((item) => item.id === 1);
+  const reviewsBefore = data.reviews.length;
+  const pointsBefore = data.pontos_transacoes.length;
+
+  const result = publishReview(data, {
+    user,
+    store,
+    rating: 5,
+    comment: "  Atendimento excelente.  ",
+  });
+
+  assert.equal(data.reviews.length, reviewsBefore + 1);
+  assert.equal(data.pontos_transacoes.length, pointsBefore + 1);
+  assert.equal(result.review.user, user.id);
+  assert.equal(result.review.store, store.id);
+  assert.equal(result.review.rating, 5);
+  assert.equal(result.review.comment, "Atendimento excelente.");
+  assert.equal(result.review.photo, "");
+  assert.match(result.review.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(result.pointsTransaction.usuario_id, user.id);
+  assert.equal(result.pointsTransaction.loja_id, store.id);
+  assert.equal(result.pointsTransaction.tipo, "credito");
+  assert.equal(result.pointsTransaction.quantidade, 10);
+  assert.equal(result.pointsTransaction.avaliacao_id, result.review.id);
+  assert.equal(
+    result.pointsTransaction.descricao,
+    "Pontos por avaliação publicada",
+  );
+  assert.equal(getUserReviews(data.reviews, user.id).at(0).id, result.review.id);
+  assert.ok(getStoreReviews(data.reviews, store.id).some(
+    (review) => review.id === result.review.id,
+  ));
+  assert.ok(!getUserReviews(data.reviews, "sample1").some(
+    (review) => review.id === result.review.id,
+  ));
+});
+
+test("publicação rejeita perfil, nota e comentário inválidos", () => {
+  const data = fresh();
+  const user = data.users.find((item) => item.id === "consumer");
+  const store = data.stores.find((item) => item.id === 1);
+  const merchant = data.users.find((item) => item.id === "merchant");
+
+  assert.throws(
+    () => publishReview(data, { user, store, rating: 0, comment: "Texto" }),
+    /1 a 5/,
+  );
+  assert.throws(
+    () => publishReview(data, { user, store, rating: 6, comment: "Texto" }),
+    /1 a 5/,
+  );
+  assert.throws(
+    () => publishReview(data, { user, store, rating: 5, comment: "   " }),
+    /comentário/,
+  );
+  assert.throws(
+    () => publishReview(data, { user: merchant, store, rating: 5, comment: "Texto" }),
+    /consumidores/,
   );
 });
 

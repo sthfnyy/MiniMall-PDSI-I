@@ -2267,6 +2267,86 @@ td {
   font-weight: 600;
 }
 
+.review-form {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 30px;
+}
+
+.review-form-store {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-form-store h2 {
+  margin-top: 6px;
+  font-size: 28px;
+}
+
+.review-rating-field {
+  margin: 26px 0 20px;
+  padding: 0;
+  border: 0;
+}
+
+.review-rating-field legend {
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.review-rating-options {
+  display: flex;
+  gap: 6px;
+}
+
+.review-rating-options button {
+  display: inline-flex;
+  padding: 4px;
+  color: #9da494;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.review-rating-options button:hover,
+.review-rating-options button.selected {
+  color: #b98518;
+  transform: translateY(-1px);
+}
+
+.review-rating-status {
+  display: block;
+  min-height: 20px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.review-form .field {
+  margin: 0;
+}
+
+.review-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+@media (max-width: 600px) {
+  .review-form {
+    padding: 22px 18px;
+  }
+
+  .review-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .review-form-actions button {
+    width: 100%;
+  }
+}
+
 
 /* =========================================================
    FORMULÁRIO DE EDIÇÃO
