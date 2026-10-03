@@ -151,3 +151,58 @@ test("favoritos do consumidor inicializam e refletem produtos aprovados", () => 
   assert.equal(filteredAfterDelete.length, 1);
   assert.equal(filteredAfterDelete[0].id, 4);
 });
+
+test("pontos do consumidor calculam saldo total, saldo por loja e histórico", () => {
+  const d = fresh();
+  assert.ok(Array.isArray(d.pontos_transacoes));
+
+  // Validação dos campos do schema
+  for (const t of d.pontos_transacoes) {
+    assert.ok(t.id);
+    assert.ok(t.usuario_id);
+    assert.ok(t.loja_id);
+    assert.ok(["credito", "resgate"].includes(t.tipo));
+    assert.ok(typeof t.quantidade === "number" && t.quantidade > 0);
+    assert.ok(t.criado_em);
+  }
+
+  // Filtragem das transações do consumidor Caio
+  const caioTransactions = d.pontos_transacoes.filter(
+    (t) => t.usuario_id === "consumer",
+  );
+  assert.equal(caioTransactions.length, 4);
+
+  // Regra de saldo total: credito soma, resgate subtrai
+  const total = caioTransactions.reduce((acc, t) => {
+    return t.tipo === "credito" ? acc + t.quantidade : acc - t.quantidade;
+  }, 0);
+  assert.equal(total, 150); // 10 + 120 + 50 - 30 = 150
+
+  // Regra de saldo por loja
+  const saldoPorLoja = caioTransactions.reduce((acc, t) => {
+    acc[t.loja_id] =
+      (acc[t.loja_id] || 0) + (t.tipo === "credito" ? t.quantidade : -t.quantidade);
+    return acc;
+  }, {});
+
+  assert.equal(saldoPorLoja[1], 100); // Dona Flor (1): 10 + 120 - 30 = 100
+  assert.equal(saldoPorLoja[2], 50); // Passo Leve (2): 50
+
+  // Regra da avaliação publicada: gera 10 pontos de crédito
+  const reviewTransaction = caioTransactions.find((t) => t.avaliacao_id === 101);
+  assert.ok(reviewTransaction);
+  assert.equal(reviewTransaction.tipo, "credito");
+  assert.equal(reviewTransaction.quantidade, 10);
+  assert.equal(reviewTransaction.descricao, "Pontos por avaliação publicada");
+
+  // Usuário sem transações (estado vazio)
+  const emptyUserTransactions = d.pontos_transacoes.filter(
+    (t) => t.usuario_id === "usuario_inexistente",
+  );
+  assert.equal(emptyUserTransactions.length, 0);
+  const emptyTotal = emptyUserTransactions.reduce((acc, t) => {
+    return t.tipo === "credito" ? acc + t.quantidade : acc - t.quantidade;
+  }, 0);
+  assert.equal(emptyTotal, 0);
+});
+

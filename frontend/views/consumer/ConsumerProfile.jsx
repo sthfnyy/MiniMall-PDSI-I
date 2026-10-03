@@ -6,6 +6,7 @@ import {
   Pencil,
   Save,
   Heart,
+  Coins,
 } from "lucide-react";
 import { Field } from "../../components/ui";
 
@@ -13,6 +14,7 @@ export default function ConsumerProfile({
   user,
   onUpdate,
   onFavorites,
+  onPoints,
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -128,6 +130,15 @@ export default function ConsumerProfile({
             >
               <Heart size={17} />
               Meus favoritos
+            </button>
+
+            <button
+              className="secondary"
+              type="button"
+              onClick={onPoints}
+            >
+              <Coins size={17} />
+              Meus pontos
             </button>
           </div>
         )}
