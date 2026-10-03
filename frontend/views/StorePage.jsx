@@ -3,7 +3,15 @@ import { MapPin, Clock, Navigation, Star, ArrowUpRight } from "lucide-react";
 import ProductCard from "../components/ProductCard";
 import { rating } from "../services/catalog";
 import StoreIdentity, { storeIdentity } from "../components/StoreIdentity";
-export default function StorePage({ store: s, data, onProduct, onStore, go }) {
+export default function StorePage({
+  store: s,
+  data,
+  onProduct,
+  onStore,
+  go,
+  isFavorite,
+  onToggleFavorite,
+}) {
   const identity = storeIdentity(s.id);
   const products = data.products.filter((p) => p.store === s.id && !p.deleted),
     reviews = data.reviews.filter((r) => r.store === s.id);
@@ -70,6 +78,8 @@ export default function StorePage({ store: s, data, onProduct, onStore, go }) {
               store={s}
               onProduct={onProduct}
               onStore={onStore}
+              isFavorite={isFavorite ? isFavorite(p.id) : false}
+              onToggleFavorite={onToggleFavorite}
             />
           ))}
         </div>

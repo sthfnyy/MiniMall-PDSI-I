@@ -6,9 +6,17 @@ import {
   ArrowUpRight,
   ShieldCheck,
   MapPin,
+  Heart,
 } from "lucide-react";
 import { money, price } from "../services/catalog";
-export default function ProductDetail({ product: p, store: s, go, contact }) {
+export default function ProductDetail({
+  product: p,
+  store: s,
+  go,
+  contact,
+  isFavorite = false,
+  onToggleFavorite,
+}) {
   const [variation, setVariation] = useState("");
   useEffect(() => setVariation(""), [p.id]);
   return (
@@ -20,6 +28,24 @@ export default function ProductDetail({ product: p, store: s, go, contact }) {
         <div className="detail-image">
           <img src={p.image} alt={p.name} />
           {p.sale > 0 && <span className="sale-tag">Oferta</span>}
+          {onToggleFavorite && (
+            <button
+              className={`favorite ${isFavorite ? "is-favorite" : ""}`}
+              type="button"
+              aria-label={
+                isFavorite
+                  ? `Remover ${p.name} dos favoritos`
+                  : `Adicionar ${p.name} aos favoritos`
+              }
+              aria-pressed={isFavorite}
+              onClick={() => onToggleFavorite(p)}
+            >
+              <Heart
+                size={20}
+                fill={isFavorite ? "currentColor" : "none"}
+              />
+            </button>
+          )}
         </div>
         <div className="detail-copy">
           <span className="eyebrow muted">{p.category}</span>

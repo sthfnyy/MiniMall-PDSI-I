@@ -126,3 +126,28 @@ test("autenticação local valida senha, cadastro e perfil permitido", async () 
     /cadastrado/,
   );
 });
+
+test("favoritos do consumidor inicializam e refletem produtos aprovados", () => {
+  const d = fresh();
+  const caio = d.users.find((u) => u.id === "consumer");
+  assert.ok(Array.isArray(caio.favorites));
+  assert.deepEqual(caio.favorites, [2, 4]);
+
+  const approved = d.stores.filter((s) => s.status === "aprovada");
+  const activeProducts = d.products.filter(
+    (p) => !p.deleted && approved.some((s) => s.id === p.store),
+  );
+  const favoriteProducts = activeProducts.filter((p) =>
+    caio.favorites.some((id) => Number(id) === Number(p.id)),
+  );
+  assert.equal(favoriteProducts.length, 2);
+  assert.deepEqual(favoriteProducts.map((p) => p.id), [2, 4]);
+
+  // Se um produto for excluído, ele sai dos favoritos ativos
+  d.products.find((p) => p.id === 2).deleted = true;
+  const filteredAfterDelete = d.products
+    .filter((p) => !p.deleted && approved.some((s) => s.id === p.store))
+    .filter((p) => caio.favorites.some((id) => Number(id) === Number(p.id)));
+  assert.equal(filteredAfterDelete.length, 1);
+  assert.equal(filteredAfterDelete[0].id, 4);
+});
