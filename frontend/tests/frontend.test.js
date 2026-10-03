@@ -9,6 +9,7 @@ import {
   moderateReview,
 } from "../services/admin.js";
 import { whatsappLink } from "../services/contact.js";
+import { getUserReviews } from "../services/reviews.js";
 const fresh = () => structuredClone(seed);
 test("vitrine combina busca sem acentos, loja, categoria e preço", () => {
   assert.deepEqual(
@@ -204,5 +205,36 @@ test("pontos do consumidor calculam saldo total, saldo por loja e histórico", (
     return t.tipo === "credito" ? acc + t.quantidade : acc - t.quantidade;
   }, 0);
   assert.equal(emptyTotal, 0);
+});
+
+test("minhas avaliações filtra pelo consumidor e ordena da mais recente", () => {
+  const reviews = fresh().reviews;
+
+  assert.deepEqual(
+    getUserReviews(reviews, "sample1").map((review) => review.id),
+    [101],
+  );
+  assert.deepEqual(getUserReviews(reviews, "usuario-inexistente"), []);
+
+  const databaseFields = reviews.map(({ user, store, date, ...review }) => ({
+    ...review,
+    usuario_id: user,
+    loja_id: store,
+    criado_em: date,
+  }));
+
+  assert.deepEqual(
+    getUserReviews(databaseFields, "sample3").map((review) => review.id),
+    [103],
+  );
+
+  const sameUser = reviews.map((review) => ({
+    ...review,
+    user: "sample1",
+  }));
+  assert.deepEqual(
+    getUserReviews(sameUser, "sample1").map((review) => review.id),
+    [103, 102, 101],
+  );
 });
 

@@ -22,6 +22,7 @@ import Admin from "./views/admin/Admin";
 import ConsumerProfile from "./views/consumer/ConsumerProfile";
 import ConsumerFavorites from "./views/consumer/ConsumerFavorites";
 import ConsumerPoints from "./views/consumer/ConsumerPoints";
+import ConsumerReviews from "./views/consumer/ConsumerReviews";
 
 import StoreCard from "./components/StoreCard";
 import { Modal, Empty } from "./components/ui";
@@ -497,6 +498,9 @@ export default function App() {
               onPoints={() =>
                 go("consumidor/pontos")
               }
+              onReviews={() =>
+                go("consumidor/avaliacoes")
+              }
               onUpdate={(updatedUser) => {
                 setUser(updatedUser);
 
@@ -581,6 +585,29 @@ export default function App() {
             />
           ))}
 
+        {/* AVALIAÇÕES DO CONSUMIDOR */}
+        {route === "consumidor/avaliacoes" &&
+          (user?.role === "consumidor" ? (
+            <ConsumerReviews
+              user={user}
+              data={data}
+              go={go}
+            />
+          ) : (
+            <Empty
+              title="Acesso restrito"
+              text="Entre com uma conta de consumidor."
+              action={
+                <button
+                  className="primary"
+                  onClick={() => go("login")}
+                >
+                  Entrar
+                </button>
+              }
+            />
+          ))}
+
         {/* ADMINISTRAÇÃO */}
         {route === "admin" &&
           (user?.role === "administrador" ? (
@@ -615,6 +642,7 @@ export default function App() {
           "consumidor",
           "consumidor/favoritos",
           "consumidor/pontos",
+          "consumidor/avaliacoes",
         ].includes(route) &&
           !product &&
           !store && (
