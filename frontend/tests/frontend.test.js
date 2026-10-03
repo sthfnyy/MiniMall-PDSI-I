@@ -9,6 +9,11 @@ import {
   moderateReview,
 } from "../services/admin.js";
 import { whatsappLink } from "../services/contact.js";
+import {
+  getStoreReviews,
+  getUserReviews,
+  publishReview,
+} from "../services/reviews.js";
 const fresh = () => structuredClone(seed);
 test("vitrine combina busca sem acentos, loja, categoria e preço", () => {
   assert.deepEqual(
@@ -126,3 +131,178 @@ test("autenticação local valida senha, cadastro e perfil permitido", async () 
     /cadastrado/,
   );
 });
+
+test("favoritos do consumidor inicializam e refletem produtos aprovados", () => {
+  const d = fresh();
+  const caio = d.users.find((u) => u.id === "consumer");
+  assert.ok(Array.isArray(caio.favorites));
+  assert.deepEqual(caio.favorites, [2, 4]);
+
+  const approved = d.stores.filter((s) => s.status === "aprovada");
+  const activeProducts = d.products.filter(
+    (p) => !p.deleted && approved.some((s) => s.id === p.store),
+  );
+  const favoriteProducts = activeProducts.filter((p) =>
+    caio.favorites.some((id) => Number(id) === Number(p.id)),
+  );
+  assert.equal(favoriteProducts.length, 2);
+  assert.deepEqual(favoriteProducts.map((p) => p.id), [2, 4]);
+
+  // Se um produto for excluído, ele sai dos favoritos ativos
+  d.products.find((p) => p.id === 2).deleted = true;
+  const filteredAfterDelete = d.products
+    .filter((p) => !p.deleted && approved.some((s) => s.id === p.store))
+    .filter((p) => caio.favorites.some((id) => Number(id) === Number(p.id)));
+  assert.equal(filteredAfterDelete.length, 1);
+  assert.equal(filteredAfterDelete[0].id, 4);
+});
+
+test("pontos do consumidor calculam saldo total, saldo por loja e histórico", () => {
+  const d = fresh();
+  assert.ok(Array.isArray(d.pontos_transacoes));
+
+  // Validação dos campos do schema
+  for (const t of d.pontos_transacoes) {
+    assert.ok(t.id);
+    assert.ok(t.usuario_id);
+    assert.ok(t.loja_id);
+    assert.ok(["credito", "resgate"].includes(t.tipo));
+    assert.ok(typeof t.quantidade === "number" && t.quantidade > 0);
+    assert.ok(t.criado_em);
+  }
+
+  // Filtragem das transações do consumidor Caio
+  const caioTransactions = d.pontos_transacoes.filter(
+    (t) => t.usuario_id === "consumer",
+  );
+  assert.equal(caioTransactions.length, 4);
+
+  // Regra de saldo total: credito soma, resgate subtrai
+  const total = caioTransactions.reduce((acc, t) => {
+    return t.tipo === "credito" ? acc + t.quantidade : acc - t.quantidade;
+  }, 0);
+  assert.equal(total, 150); // 10 + 120 + 50 - 30 = 150
+
+  // Regra de saldo por loja
+  const saldoPorLoja = caioTransactions.reduce((acc, t) => {
+    acc[t.loja_id] =
+      (acc[t.loja_id] || 0) + (t.tipo === "credito" ? t.quantidade : -t.quantidade);
+    return acc;
+  }, {});
+
+  assert.equal(saldoPorLoja[1], 100); // Dona Flor (1): 10 + 120 - 30 = 100
+  assert.equal(saldoPorLoja[2], 50); // Passo Leve (2): 50
+
+  // Regra da avaliação publicada: gera 10 pontos de crédito
+  const reviewTransaction = caioTransactions.find((t) => t.avaliacao_id === 101);
+  assert.ok(reviewTransaction);
+  assert.equal(reviewTransaction.tipo, "credito");
+  assert.equal(reviewTransaction.quantidade, 10);
+  assert.equal(reviewTransaction.descricao, "Pontos por avaliação publicada");
+
+  // Usuário sem transações (estado vazio)
+  const emptyUserTransactions = d.pontos_transacoes.filter(
+    (t) => t.usuario_id === "usuario_inexistente",
+  );
+  assert.equal(emptyUserTransactions.length, 0);
+  const emptyTotal = emptyUserTransactions.reduce((acc, t) => {
+    return t.tipo === "credito" ? acc + t.quantidade : acc - t.quantidade;
+  }, 0);
+  assert.equal(emptyTotal, 0);
+});
+
+test("minhas avaliações filtra pelo consumidor e ordena da mais recente", () => {
+  const reviews = fresh().reviews;
+
+  assert.deepEqual(
+    getUserReviews(reviews, "sample1").map((review) => review.id),
+    [101],
+  );
+  assert.deepEqual(getUserReviews(reviews, "usuario-inexistente"), []);
+
+  const databaseFields = reviews.map(({ user, store, date, ...review }) => ({
+    ...review,
+    usuario_id: user,
+    loja_id: store,
+    criado_em: date,
+  }));
+
+  assert.deepEqual(
+    getUserReviews(databaseFields, "sample3").map((review) => review.id),
+    [103],
+  );
+
+  const sameUser = reviews.map((review) => ({
+    ...review,
+    user: "sample1",
+  }));
+  assert.deepEqual(
+    getUserReviews(sameUser, "sample1").map((review) => review.id),
+    [103, 102, 101],
+  );
+});
+
+test("publicação cria avaliação vinculada e crédito mock de 10 pontos", () => {
+  const data = fresh();
+  const user = data.users.find((item) => item.id === "consumer");
+  const store = data.stores.find((item) => item.id === 1);
+  const reviewsBefore = data.reviews.length;
+  const pointsBefore = data.pontos_transacoes.length;
+
+  const result = publishReview(data, {
+    user,
+    store,
+    rating: 5,
+    comment: "  Atendimento excelente.  ",
+  });
+
+  assert.equal(data.reviews.length, reviewsBefore + 1);
+  assert.equal(data.pontos_transacoes.length, pointsBefore + 1);
+  assert.equal(result.review.user, user.id);
+  assert.equal(result.review.store, store.id);
+  assert.equal(result.review.rating, 5);
+  assert.equal(result.review.comment, "Atendimento excelente.");
+  assert.equal(result.review.photo, "");
+  assert.match(result.review.date, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal(result.pointsTransaction.usuario_id, user.id);
+  assert.equal(result.pointsTransaction.loja_id, store.id);
+  assert.equal(result.pointsTransaction.tipo, "credito");
+  assert.equal(result.pointsTransaction.quantidade, 10);
+  assert.equal(result.pointsTransaction.avaliacao_id, result.review.id);
+  assert.equal(
+    result.pointsTransaction.descricao,
+    "Pontos por avaliação publicada",
+  );
+  assert.equal(getUserReviews(data.reviews, user.id).at(0).id, result.review.id);
+  assert.ok(getStoreReviews(data.reviews, store.id).some(
+    (review) => review.id === result.review.id,
+  ));
+  assert.ok(!getUserReviews(data.reviews, "sample1").some(
+    (review) => review.id === result.review.id,
+  ));
+});
+
+test("publicação rejeita perfil, nota e comentário inválidos", () => {
+  const data = fresh();
+  const user = data.users.find((item) => item.id === "consumer");
+  const store = data.stores.find((item) => item.id === 1);
+  const merchant = data.users.find((item) => item.id === "merchant");
+
+  assert.throws(
+    () => publishReview(data, { user, store, rating: 0, comment: "Texto" }),
+    /1 a 5/,
+  );
+  assert.throws(
+    () => publishReview(data, { user, store, rating: 6, comment: "Texto" }),
+    /1 a 5/,
+  );
+  assert.throws(
+    () => publishReview(data, { user, store, rating: 5, comment: "   " }),
+    /comentário/,
+  );
+  assert.throws(
+    () => publishReview(data, { user: merchant, store, rating: 5, comment: "Texto" }),
+    /consumidores/,
+  );
+});
+

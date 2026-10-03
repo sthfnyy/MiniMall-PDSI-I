@@ -14,6 +14,7 @@ export const seed = {
       email: "caio@exemplo.com",
       role: "consumidor",
       status: "Ativo",
+      favorites: [2, 4],
     },
     {
       id: "merchant",
@@ -35,6 +36,7 @@ export const seed = {
       email: "mariana@exemplo.com",
       role: "consumidor",
       status: "Ativo",
+      favorites: []
     },
     {
       id: "sample2",
@@ -42,6 +44,7 @@ export const seed = {
       email: "pedro@exemplo.com",
       role: "consumidor",
       status: "Ativo",
+      favorites: []
     },
     {
       id: "sample3",
@@ -49,6 +52,7 @@ export const seed = {
       email: "luiza@exemplo.com",
       role: "consumidor",
       status: "Ativo",
+      favorites: []
     },
   ],
   categories: [
@@ -200,41 +204,108 @@ export const seed = {
     },
   ],
   reviews: [
-    {
-      id: 101,
-      store: 1,
-      user: "sample1",
-      name: "Mariana S.",
-      rating: 5,
-      comment:
-        "Atendimento superatencioso e peças lindas. Adorei conhecer a loja!",
-      photo: "/images/shirt.jpg",
-      date: "2026-09-20",
-    },
-    {
-      id: 102,
-      store: 2,
-      user: "sample2",
-      name: "Pedro L.",
-      rating: 5,
-      comment:
-        "O tênis é muito confortável. Fui buscar na loja e deu tudo certo.",
-      photo: "",
-      date: "2026-09-21",
-    },
-    {
-      id: 103,
-      store: 3,
-      user: "sample3",
-      name: "Luiza M.",
-      rating: 4,
-      comment: "Gostei da variedade de fragrâncias e do atendimento.",
-      photo: "",
-      date: "2026-09-22",
-    },
-  ],
-  audit: [],
-  views: 0,
+  {
+    id: 101,
+    store: 1,
+    user: "sample1",
+    name: "Mariana S.",
+    rating: 5,
+    comment:
+      "Atendimento superatencioso e peças lindas. Adorei conhecer a loja!",
+    photo: "/images/shirt.jpg",
+    date: "2026-09-20",
+  },
+  {
+    id: 102,
+    store: 2,
+    user: "sample2",
+    name: "Pedro L.",
+    rating: 5,
+    comment:
+      "O tênis é muito confortável. Fui buscar na loja e deu tudo certo.",
+    photo: "",
+    date: "2026-09-21",
+  },
+  {
+    id: 103,
+    store: 3,
+    user: "sample3",
+    name: "Luiza M.",
+    rating: 4,
+    comment: "Gostei da variedade de fragrâncias e do atendimento.",
+    photo: "",
+    date: "2026-09-22",
+  },
+],
+
+favorites: [
+  {
+    user: "consumer",
+    product: 2,
+    date: "2026-09-20",
+  },
+  {
+    user: "consumer",
+    product: 4,
+    date: "2026-09-21",
+  },
+],
+
+pontos_transacoes: [
+  {
+    id: "pt-1",
+    usuario_id: "consumer",
+    loja_id: 1,
+    tipo: "credito",
+    quantidade: 10,
+    avaliacao_id: 101,
+    descricao: "Pontos por avaliação publicada",
+    criado_em: "2026-09-20T14:30:00Z",
+  },
+  {
+    id: "pt-2",
+    usuario_id: "consumer",
+    loja_id: 1,
+    tipo: "credito",
+    quantidade: 120,
+    avaliacao_id: null,
+    descricao: "Compra realizada na loja",
+    criado_em: "2026-09-21T10:15:00Z",
+  },
+  {
+    id: "pt-3",
+    usuario_id: "consumer",
+    loja_id: 2,
+    tipo: "credito",
+    quantidade: 50,
+    avaliacao_id: null,
+    descricao: "Bônus de primeira compra",
+    criado_em: "2026-09-22T16:00:00Z",
+  },
+  {
+    id: "pt-4",
+    usuario_id: "consumer",
+    loja_id: 1,
+    tipo: "resgate",
+    quantidade: 30,
+    avaliacao_id: null,
+    descricao: "Resgate de desconto no checkout",
+    criado_em: "2026-09-23T11:45:00Z",
+  },
+  {
+    id: "pt-5",
+    usuario_id: "sample1",
+    loja_id: 1,
+    tipo: "credito",
+    quantidade: 10,
+    avaliacao_id: 101,
+    descricao: "Pontos por avaliação publicada",
+    criado_em: "2026-09-20T15:00:00Z",
+  },
+],
+
+audit: [],
+views: 0,
 };
 
 export function rating(data, id) {

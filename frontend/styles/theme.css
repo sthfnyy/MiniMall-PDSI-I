@@ -1989,3 +1989,601 @@ td {
   }
 }
 .admin-navigation{display:flex;gap:10px;margin-bottom:28px;flex-wrap:wrap}.admin-navigation button{padding:12px 19px;border:1px solid var(--border);border-radius:6px;font-size:14px}.admin-navigation button[aria-current=page]{background:var(--ink);color:white;border-color:var(--ink)}.admin-columns{display:grid;grid-template-columns:1fr 1fr;gap:22px}.metric-list>div{display:flex;justify-content:space-between;gap:20px;padding:15px 0;border-bottom:1px solid var(--border);font-size:14px}.metric-list dd{margin:0;font-weight:600;overflow-wrap:anywhere}.metric-list dt{color:var(--muted)}.panel progress{width:100%;height:10px;accent-color:#68833b;margin:25px 0 10px}.admin-data-note{font-size:13px;color:var(--muted);margin-top:20px}.count-label{font-size:18px;margin-left:10px;color:var(--muted)}.moderation-actions{display:flex;flex-direction:column;gap:12px;min-width:175px}.moderation-actions .text-button{justify-content:center}@media(max-width:760px){.admin-columns{grid-template-columns:1fr}.admin-navigation{display:grid;grid-template-columns:1fr}.moderation-actions{width:100%}.metric-list>div{flex-wrap:wrap}}
+
+/* =========================================================
+   ÁREA DO CONSUMIDOR
+   ========================================================= */
+
+.consumer-page {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 56px 0 90px;
+}
+
+/* Cabeçalho da página */
+
+.consumer-page .page-title {
+  margin-bottom: 38px;
+  max-width: 720px;
+}
+
+.consumer-page .page-title .eyebrow {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.consumer-page .page-title h1 {
+  margin: 0;
+  font-size: clamp(42px, 5vw, 64px);
+  line-height: 1;
+  letter-spacing: -2.8px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.consumer-page .page-title p {
+  margin: 18px 0 0;
+  max-width: 620px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   CARD PRINCIPAL DO PERFIL
+   ========================================================= */
+
+.consumer-profile-card {
+  position: relative;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 34px;
+  box-shadow:
+    0 12px 30px rgba(38, 48, 40, 0.04),
+    0 2px 8px rgba(38, 48, 40, 0.03);
+}
+
+
+/* =========================================================
+   CABEÇALHO DO PERFIL
+   ========================================================= */
+
+.consumer-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--border);
+}
+
+.consumer-avatar {
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+
+  background: var(--lime);
+  color: var(--ink);
+
+  border: 1px solid rgba(39, 49, 41, 0.08);
+}
+
+.consumer-profile-header > div:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+
+.consumer-profile-header h2 {
+  margin: 0 0 5px;
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.8px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.consumer-role {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 5px 10px;
+
+  border-radius: 999px;
+
+  background: #edf2e1;
+  color: #5d6b4f;
+
+  font-size: 12px;
+  font-weight: 500;
+}
+
+
+/* =========================================================
+   BOTÃO EDITAR PERFIL
+   ========================================================= */
+
+.consumer-profile-header .secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  min-height: 44px;
+  padding: 10px 17px;
+
+  border: 1px solid var(--border);
+  border-radius: 999px;
+
+  background: #ffffff;
+  color: var(--ink);
+
+  font-size: 14px;
+  font-weight: 500;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.consumer-profile-header .secondary:hover {
+  background: #edf2e1;
+  border-color: #b8c2aa;
+  transform: translateY(-1px);
+}
+
+
+/* =========================================================
+   INFORMAÇÕES DO PERFIL
+   ========================================================= */
+
+.consumer-profile-info {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+
+  padding-top: 28px;
+}
+
+.consumer-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+
+  min-height: 88px;
+  padding: 18px;
+
+  border: 1px solid var(--border);
+  border-radius: 16px;
+
+  background: #fafbf7;
+}
+
+.consumer-info-item > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+
+  color: #66735c;
+}
+
+.consumer-info-item > div {
+  min-width: 0;
+}
+
+.consumer-info-item span {
+  display: block;
+  margin-bottom: 5px;
+
+  color: var(--muted);
+
+  font-size: 12px;
+  letter-spacing: 0.3px;
+}
+
+.consumer-info-item strong {
+  display: block;
+
+  color: var(--ink);
+
+  font-size: 15px;
+  font-weight: 600;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   AÇÕES DO CONSUMIDOR
+   ========================================================= */
+
+.consumer-profile-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+
+  margin-top: 18px;
+  padding-top: 26px;
+
+  border-top: 1px solid var(--border);
+}
+
+.consumer-profile-actions .secondary {
+  min-height: 54px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+
+  padding: 12px 18px;
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+
+  background: #ffffff;
+  color: var(--ink);
+
+  font-size: 14px;
+  font-weight: 500;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.consumer-profile-actions .secondary:hover {
+  background: #edf2e1;
+  border-color: #b8c2aa;
+  transform: translateY(-2px);
+}
+
+.consumer-profile-actions .secondary svg {
+  color: #66735c;
+}
+
+.consumer-review-store {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.consumer-review-store .store-link,
+.consumer-review-store strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.review-form {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 30px;
+}
+
+.review-form-store {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-form-store h2 {
+  margin-top: 6px;
+  font-size: 28px;
+}
+
+.review-rating-field {
+  margin: 26px 0 20px;
+  padding: 0;
+  border: 0;
+}
+
+.review-rating-field legend {
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.review-rating-options {
+  display: flex;
+  gap: 6px;
+}
+
+.review-rating-options button {
+  display: inline-flex;
+  padding: 4px;
+  color: #9da494;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.review-rating-options button:hover,
+.review-rating-options button.selected {
+  color: #b98518;
+  transform: translateY(-1px);
+}
+
+.review-rating-status {
+  display: block;
+  min-height: 20px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.review-form .field {
+  margin: 0;
+}
+
+.review-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+@media (max-width: 600px) {
+  .review-form {
+    padding: 22px 18px;
+  }
+
+  .review-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .review-form-actions button {
+    width: 100%;
+  }
+}
+
+
+/* =========================================================
+   FORMULÁRIO DE EDIÇÃO
+   ========================================================= */
+
+.consumer-profile-form {
+  display: grid;
+  gap: 20px;
+
+  padding-top: 28px;
+}
+
+.consumer-profile-form .field {
+  gap: 8px;
+}
+
+.consumer-profile-form .field > span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.consumer-profile-form input {
+  width: 100%;
+  min-height: 48px;
+
+  padding: 12px 14px;
+
+  border: 1px solid var(--border);
+  border-radius: 12px;
+
+  background: #fafbf7;
+  color: var(--ink);
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.consumer-profile-form input:focus {
+  border-color: #87986d;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(135, 152, 109, 0.12);
+}
+
+.consumer-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+
+  padding-top: 8px;
+}
+
+
+/* =========================================================
+   FAVORITOS
+   ========================================================= */
+
+.consumer-favorites-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  margin-bottom: 28px;
+}
+
+.consumer-favorites-header h2 {
+  margin: 8px 0 0;
+
+  font-size: 30px;
+  line-height: 1.15;
+  letter-spacing: -1px;
+  font-weight: 500;
+}
+
+.consumer-favorites-header .section-index {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 1.8px;
+}
+
+
+/* =========================================================
+   RESPONSIVIDADE
+   ========================================================= */
+
+@media (max-width: 850px) {
+  .consumer-page {
+    padding: 40px 26px 70px;
+  }
+
+  .consumer-profile-card {
+    padding: 26px;
+  }
+
+  .consumer-profile-info {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .consumer-page {
+    padding: 32px 20px 60px;
+  }
+
+  .consumer-page .page-title h1 {
+    font-size: 42px;
+    letter-spacing: -2px;
+  }
+
+  .consumer-profile-card {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .consumer-profile-header {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .consumer-profile-header .secondary {
+    width: 100%;
+  }
+
+  .consumer-avatar {
+    width: 58px;
+    height: 58px;
+    flex-basis: 58px;
+  }
+
+  .consumer-profile-header h2 {
+    font-size: 23px;
+  }
+
+  .consumer-profile-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .consumer-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .consumer-form-actions button {
+    width: 100%;
+  }
+}
+/* =========================================================
+   CONSUMIDOR — SALDO DE PONTOS
+   ========================================================= */
+
+.consumer-points-summary {
+  width: 100%;
+  min-height: 145px;
+
+  display: flex;
+  align-items: center;
+  gap: 22px;
+
+  margin-bottom: 28px;
+  padding: 30px;
+
+  border: 1px solid #d5dfba;
+  border-radius: 24px;
+
+  background: #eaf1d4;
+
+  box-shadow:
+    0 10px 25px rgba(38, 48, 40, 0.04),
+    0 2px 8px rgba(38, 48, 40, 0.03);
+}
+
+.consumer-points-icon {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 50%;
+
+  background: #d0ed62;
+  color: #263129;
+
+  border: 1px solid rgba(38, 49, 41, 0.08);
+}
+
+.consumer-points-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.consumer-points-content > span {
+  color: #667451;
+
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+}
+
+.consumer-points-content > strong {
+  color: #263129;
+
+  font-size: clamp(30px, 4vw, 40px);
+  line-height: 1;
+
+  font-weight: 600;
+  letter-spacing: -1.2px;
+}
+
+
+/* Responsividade */
+
+@media (max-width: 620px) {
+  .consumer-points-summary {
+    min-height: 125px;
+    padding: 22px;
+    gap: 16px;
+    border-radius: 18px;
+  }
+
+  .consumer-points-icon {
+    width: 54px;
+    height: 54px;
+    flex-basis: 54px;
+  }
+
+  .consumer-points-icon svg {
+    width: 25px;
+    height: 25px;
+  }
+
+  .consumer-points-content > strong {
+    font-size: 30px;
+  }
+}
