@@ -289,7 +289,13 @@ create policy "profiles: leitura própria ou admin"
 
 create policy "profiles: atualização própria"
   on public.profiles for update
-  using (id = auth.uid());
+  using (id = auth.uid())
+  with check (id = auth.uid());
+
+-- O usuário autenticado pode alterar somente os dados editáveis do próprio perfil.
+-- Alterações administrativas continuam disponíveis por conexões privilegiadas.
+revoke update on public.profiles from authenticated;
+grant update (nome_completo, telefone, avatar_url) on public.profiles to authenticated;
 
 
 create policy "lojas: leitura pública (aprovadas)"
