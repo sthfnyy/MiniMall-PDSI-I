@@ -31,6 +31,11 @@ import { Modal, Empty } from "./components/ui";
 import { money, price } from "./services/catalog";
 import { loadData, saveData } from "./services/storage";
 import { publishReview } from "./services/reviews";
+import {
+  getCurrentSession,
+  observeAuthChanges,
+  signOut,
+} from "./services/auth";
 
 const emptyFilters = {
   query: "",
@@ -47,6 +52,9 @@ export default function App() {
     location.hash.slice(1) || "inicio",
   );
   const [user, setUser] = useState(null);
+  const [authUser, setAuthUser] = useState(null);
+  const [authSession, setAuthSession] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [filters, setFilters] = useState(emptyFilters);
   const [toast, setToast] = useState("");
   const [contact, setContact] = useState(null);
@@ -54,6 +62,57 @@ export default function App() {
   const go = (path) => {
     location.hash = path;
   };
+
+  const applyAuthSession = (session) => {
+    setAuthSession(session);
+    setAuthUser(session?.user ?? null);
+    setAuthLoading(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (authSession) await signOut();
+      setUser(null);
+      applyAuthSession(null);
+      go("inicio");
+      setToast("Você saiu da conta.");
+    } catch (error) {
+      setToast(error.message);
+    }
+  };
+
+  useEffect(() => {
+    let active = true;
+    let stopObserving = () => {};
+
+    const updateSession = (session) => {
+      if (active) applyAuthSession(session);
+    };
+
+    async function initializeAuth() {
+      try {
+        updateSession(await getCurrentSession());
+        stopObserving = observeAuthChanges(updateSession);
+      } catch (error) {
+        updateSession(null);
+        setToast(error.message);
+      }
+    }
+
+    initializeAuth();
+
+    return () => {
+      active = false;
+      stopObserving();
+    };
+  }, []);
+
+  useEffect(() => {
+    const protectedRoute = route === "admin" || route.startsWith("consumidor");
+    if (!authLoading && authUser && (route === "login" || protectedRoute)) {
+      go("inicio");
+    }
+  }, [authLoading, authUser, route]);
 
   useEffect(() => {
     const change = () => {
@@ -337,18 +396,16 @@ export default function App() {
             </button>
           </form>
 
-          {user ? (
+          {authLoading ? (
+            <span className="muted">Verificando sessão…</span>
+          ) : user || authUser ? (
             <div className="row account-status">
-              <span>{user.name}</span>
+              <span>{user?.name || authUser?.email}</span>
 
               <button
                 className="icon-button"
                 aria-label="Sair"
-                onClick={() => {
-                  setUser(null);
-                  go("inicio");
-                  setToast("Você saiu da conta.");
-                }}
+                onClick={handleLogout}
               >
                 <LogOut size={18} />
               </button>
@@ -465,37 +522,43 @@ export default function App() {
           />
         )}
 
-        {["login", "cadastro"].includes(route) && (
-          <AuthPage
-            key={route}
-            mode={route}
-            users={data.users}
-            go={go}
-            onRegister={(u) =>
-              update((d) => {
-                d.users.push(u);
-                return d;
-              })
-            }
-            onSuccess={(u) => {
-              setUser(u);
-
-              if (u.role === "administrador") {
-                go("admin");
-              } else if (u.role === "consumidor") {
-                go("consumidor");
-              } else {
-                go("explorar");
+        {["login", "cadastro"].includes(route) &&
+          !authLoading &&
+          (route === "cadastro" || !authUser) && (
+            <AuthPage
+              key={route}
+              mode={route}
+              users={data.users}
+              go={go}
+              onRegister={(u) =>
+                update((d) => {
+                  d.users.push(u);
+                  return d;
+                })
               }
+              onSuccess={(result) => {
+                if (result.session) {
+                  applyAuthSession(result.session);
+                  setUser(null);
+                  go("inicio");
+                  setToast("Você entrou na conta.");
+                  return;
+                }
 
-              setToast(
-                route === "cadastro"
-                  ? "Cadastro concluído."
-                  : "Você entrou na conta.",
-              );
-            }}
-          />
-        )}
+                setUser(result);
+
+                if (result.role === "administrador") {
+                  go("admin");
+                } else if (result.role === "consumidor") {
+                  go("consumidor");
+                } else {
+                  go("explorar");
+                }
+
+                setToast("Cadastro concluído.");
+              }}
+            />
+          )}
 
         {/* PERFIL DO CONSUMIDOR */}
         {route === "consumidor" &&
