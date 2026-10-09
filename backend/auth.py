@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config.database import get_db
 from .models import Profile, UserRole
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 SUPABASE_JWKS_URL = (
     "https://fbwhpontyucoifhehysn.supabase.co/auth/v1/.well-known/jwks.json"
@@ -18,8 +18,14 @@ SUPABASE_JWKS_URL = (
 
 
 async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> uuid.UUID:
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciais de autenticação não fornecidas",
+        )
+
     token = credentials.credentials
 
     try:
@@ -96,6 +102,18 @@ async def require_admin(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Acesso restrito a administradores",
+        )
+
+    return profile
+
+
+async def require_consumer(
+    profile: Profile = Depends(get_current_profile),
+) -> Profile:
+    if profile.role != UserRole.consumidor:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a consumidores",
         )
 
     return profile

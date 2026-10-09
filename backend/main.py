@@ -8,6 +8,7 @@ from .controllers import (
     admin_lojas,
     admin_moderacao,
     admin_usuarios,
+    consumer_perfil,
     visualizacoes,
 )
 
@@ -26,6 +27,7 @@ app.include_router(admin_lojas.router)
 app.include_router(admin_moderacao.router)
 app.include_router(admin_categorias.router)
 app.include_router(admin_usuarios.router)
+app.include_router(consumer_perfil.router)
 app.include_router(visualizacoes.router)
 
 @app.get("/health")

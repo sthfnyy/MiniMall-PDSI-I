@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from .models import StatusLoja, UserRole
 
@@ -33,6 +33,33 @@ class UsuarioOut(BaseModel):
     nome_completo: str
     telefone: str | None
     criado_em: datetime
+
+
+class ConsumerProfileOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    role: UserRole
+    nome_completo: str
+    telefone: str | None
+    avatar_url: str | None
+    criado_em: datetime
+    atualizado_em: datetime
+
+
+class ConsumerProfileUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nome_completo: str | None = None
+    telefone: str | None = None
+    avatar_url: str | None = None
+
+    @field_validator("nome_completo")
+    @classmethod
+    def validar_nome_completo(cls, value: str | None) -> str:
+        if value is None or not value.strip():
+            raise ValueError("nome_completo não pode ser vazio")
+        return value.strip()
 
 
 class CategoriaOut(BaseModel):
