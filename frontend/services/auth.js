@@ -1,4 +1,5 @@
-// Login salvo no navegador. Falta conectar à API.
+import { getSupabaseClient } from "./supabase.js";
+
 export const DEMO_PASSWORD = "Demo1234!";
 const KEY = "minimall-delivery-credentials-v1";
 async function digest(password, salt) {
@@ -23,18 +24,27 @@ async function digest(password, salt) {
     b.toString(16).padStart(2, "0"),
   ).join("");
 }
-export async function signIn(users, email, password) {
-  const user = users.find(
-    (u) => u.email.toLowerCase() === email.trim().toLowerCase(),
-  );
-  if (!user) throw new Error("E-mail ou senha inválidos.");
-  const credentials = JSON.parse(localStorage.getItem(KEY) || "{}");
-  const saved = credentials[user.id];
-  const valid = saved
-    ? (await digest(password, saved.salt)) === saved.hash
-    : !user.id.startsWith("user-") && password === DEMO_PASSWORD;
-  if (!valid) throw new Error("E-mail ou senha inválidos.");
-  return user;
+export async function signIn(
+  _users,
+  email,
+  password,
+  client = getSupabaseClient(),
+) {
+  const { data, error } = await client.auth.signInWithPassword({
+    email: email.trim(),
+    password,
+  });
+
+  if (error) throw new Error(error.message || "Não foi possível entrar.");
+  if (!data.session || !data.user) {
+    throw new Error("O Supabase não retornou uma sessão válida.");
+  }
+
+  return {
+    user: data.user,
+    session: data.session,
+    accessToken: data.session.access_token,
+  };
 }
 export async function signUp(users, values) {
   const email = values.email.trim().toLowerCase();
@@ -56,4 +66,30 @@ export async function signUp(users, values) {
   credentials[user.id] = { salt, hash: await digest(values.password, salt) };
   localStorage.setItem(KEY, JSON.stringify(credentials));
   return user;
+}
+
+export async function getCurrentSession(client = getSupabaseClient()) {
+  const { data, error } = await client.auth.getSession();
+  if (error) {
+    throw new Error(error.message || "Não foi possível recuperar a sessão.");
+  }
+  return data.session;
+}
+
+export function observeAuthChanges(callback, client = getSupabaseClient()) {
+  const { data } = client.auth.onAuthStateChange((_event, session) => {
+    callback(session);
+  });
+
+  return () => data.subscription.unsubscribe();
+}
+
+export async function signOut(client = getSupabaseClient()) {
+  const { error } = await client.auth.signOut();
+  if (error) throw new Error(error.message || "Não foi possível sair.");
+}
+
+export async function getAccessToken(client = getSupabaseClient()) {
+  const session = await getCurrentSession(client);
+  return session?.access_token ?? null;
 }

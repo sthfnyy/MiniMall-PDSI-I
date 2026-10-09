@@ -87,22 +87,14 @@ test("contato codifica a mensagem e trata número não informado", () => {
     "Olá! Camisa R$ 129,90 #produto/1",
   );
 });
-test("autenticação local valida senha, cadastro e perfil permitido", async () => {
+test("cadastro local preserva validações e não armazena a senha em texto", async () => {
   const values = new Map();
   globalThis.localStorage = {
     getItem: (k) => values.get(k) || null,
     setItem: (k, v) => values.set(k, v),
   };
-  const { signIn, signUp } = await import("../services/auth.js");
+  const { signUp } = await import("../services/auth.js");
   const users = fresh().users;
-  assert.equal(
-    (await signIn(users, "admin@exemplo.com", "Demo1234!")).role,
-    "administrador",
-  );
-  await assert.rejects(
-    signIn(users, "admin@exemplo.com", "invalida"),
-    /inválidos/,
-  );
   await assert.rejects(
     signUp(users, {
       name: "Teste",
@@ -119,7 +111,6 @@ test("autenticação local valida senha, cadastro e perfil permitido", async () 
     password: "Teste123!",
   });
   users.push(user);
-  assert.equal((await signIn(users, user.email, "Teste123!")).id, user.id);
   assert.ok(![...values.values()].join("").includes("Teste123!"));
   await assert.rejects(
     signUp(users, {
@@ -130,6 +121,137 @@ test("autenticação local valida senha, cadastro e perfil permitido", async () 
     }),
     /cadastrado/,
   );
+});
+
+test("login Supabase retorna usuário, sessão e access token", async () => {
+  const { signIn } = await import("../services/auth.js");
+  const session = { access_token: "jwt-teste", user: { id: "user-id" } };
+  const client = {
+    auth: {
+      signInWithPassword: async (credentials) => {
+        assert.deepEqual(credentials, {
+          email: "teste@exemplo.com",
+          password: "Senha123!",
+        });
+        return { data: { user: session.user, session }, error: null };
+      },
+    },
+  };
+
+  const result = await signIn(
+    [],
+    " teste@exemplo.com ",
+    "Senha123!",
+    client,
+  );
+
+  assert.equal(result.user.id, "user-id");
+  assert.equal(result.session, session);
+  assert.equal(result.accessToken, "jwt-teste");
+});
+
+test("login Supabase propaga erro de autenticação", async () => {
+  const { signIn } = await import("../services/auth.js");
+  const client = {
+    auth: {
+      signInWithPassword: async () => ({
+        data: {},
+        error: { message: "Invalid login credentials" },
+      }),
+    },
+  };
+
+  await assert.rejects(
+    signIn([], "teste@exemplo.com", "invalida", client),
+    /Invalid login credentials/,
+  );
+});
+
+test("sessão Supabase existente pode ser restaurada", async () => {
+  const { getCurrentSession } = await import("../services/auth.js");
+  const session = { access_token: "jwt-restaurado" };
+  const client = {
+    auth: {
+      getSession: async () => ({ data: { session }, error: null }),
+    },
+  };
+
+  assert.equal(await getCurrentSession(client), session);
+});
+
+test("estado inicial sem sessão retorna null", async () => {
+  const { getCurrentSession } = await import("../services/auth.js");
+  const client = {
+    auth: {
+      getSession: async () => ({ data: { session: null }, error: null }),
+    },
+  };
+
+  assert.equal(await getCurrentSession(client), null);
+});
+
+test("alterações de autenticação atualizam a sessão observada", async () => {
+  const { observeAuthChanges } = await import("../services/auth.js");
+  let listener;
+  let unsubscribed = false;
+  const client = {
+    auth: {
+      onAuthStateChange: (callback) => {
+        listener = callback;
+        return {
+          data: {
+            subscription: {
+              unsubscribe: () => {
+                unsubscribed = true;
+              },
+            },
+          },
+        };
+      },
+    },
+  };
+  let observedSession;
+
+  const stop = observeAuthChanges((session) => {
+    observedSession = session;
+  }, client);
+  listener("TOKEN_REFRESHED", { access_token: "jwt-renovado" });
+
+  assert.equal(observedSession.access_token, "jwt-renovado");
+  listener("SIGNED_OUT", null);
+  assert.equal(observedSession, null);
+  stop();
+  assert.equal(unsubscribed, true);
+});
+
+test("logout chama Supabase Auth", async () => {
+  const { signOut } = await import("../services/auth.js");
+  let called = false;
+  const client = {
+    auth: {
+      signOut: async () => {
+        called = true;
+        return { error: null };
+      },
+    },
+  };
+
+  await signOut(client);
+  assert.equal(called, true);
+});
+
+test("access token atual fica disponível para chamadas futuras", async () => {
+  const { getAccessToken } = await import("../services/auth.js");
+  const client = {
+    auth: {
+      getSession: async () => ({
+        data: { session: { access_token: "jwt-atual" } },
+        error: null,
+      }),
+    },
+  };
+
+  assert.equal(await getAccessToken(client), "jwt-atual");
 });
 
 test("favoritos do consumidor inicializam e refletem produtos aprovados", () => {
