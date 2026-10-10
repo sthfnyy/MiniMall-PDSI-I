@@ -680,4 +680,47 @@ test("createStoreProduct adiciona um novo produto ao catálogo da loja", () => {
   assert.ok(updatedProducts.some((p) => p.id === result.product.id));
 });
 
+test("createStoreProduct suporta upload de foto (data URL base64) e variações dinâmicas", () => {
+  const data = fresh();
+  const merchantUser = data.users.find((u) => u.id === "merchant");
+  const fakeDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+  const result = createStoreProduct(data, merchantUser, {
+    name: "Sapato Oxford Artesanal",
+    description: "Confeccionado em couro legítimo.",
+    price: 299.9,
+    sale: 249.9,
+    category: "Calçados",
+    variations: ["38", "39", "40", "41", "Preto", "Café"],
+    image: fakeDataUrl,
+  });
+
+  assert.equal(result.product.image, fakeDataUrl);
+  assert.deepEqual(result.product.variations, ["38", "39", "40", "41", "Preto", "Café"]);
+  assert.equal(result.product.sale, 249.9);
+});
+
+test("updateStoreProduct permite ativar e desativar promoção de preço", () => {
+  const data = fresh();
+  const merchantUser = data.users.find((u) => u.id === "merchant");
+  const product = getStoreProducts(data, 1)[0];
+
+  // Ativa promoção
+  updateStoreProduct(data, merchantUser, product.id, {
+    name: product.name,
+    price: 100,
+    sale: 79.9,
+  });
+  assert.equal(product.sale, 79.9);
+
+  // Desativa promoção (sale: 0)
+  updateStoreProduct(data, merchantUser, product.id, {
+    name: product.name,
+    price: 100,
+    sale: 0,
+  });
+  assert.equal(product.sale, 0);
+});
+
+
 
