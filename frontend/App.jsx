@@ -27,6 +27,7 @@ import ConsumerReviews from "./views/consumer/ConsumerReviews";
 import ReviewForm from "./views/consumer/ReviewForm";
 import StoreSettings from "./views/merchant/StoreSettings";
 import ProductList from "./views/merchant/ProductList";
+import ProductForm from "./views/merchant/ProductForm";
 
 import StoreCard from "./components/StoreCard";
 import { Modal, Empty } from "./components/ui";
@@ -816,6 +817,37 @@ export default function App() {
             />
           ))}
 
+        {/* CADASTRO OU EDIÇÃO DE PRODUTO DO LOJISTA */}
+        {(route === "lojista/produtos/novo" ||
+          route.startsWith("lojista/produtos/editar/")) &&
+          (user?.role === "lojista" ? (
+            <ProductForm
+              user={user}
+              data={data}
+              productId={
+                route.startsWith("lojista/produtos/editar/")
+                  ? route.split("/")[3]
+                  : null
+              }
+              go={go}
+              update={update}
+              notify={setToast}
+            />
+          ) : (
+            <Empty
+              title="Acesso restrito"
+              text="Entre com uma conta de lojista para cadastrar ou editar produtos."
+              action={
+                <button
+                  className="primary"
+                  onClick={() => go("login")}
+                >
+                  Entrar
+                </button>
+              }
+            />
+          ))}
+
         {/* ROTA NÃO ENCONTRADA */}
         {![
           "inicio",
@@ -830,7 +862,9 @@ export default function App() {
           "consumidor/avaliacoes",
           "lojista",
           "lojista/produtos",
+          "lojista/produtos/novo",
         ].includes(route) &&
+          !route.startsWith("lojista/produtos/editar/") &&
           !product &&
           !store &&
           !reviewStore && (

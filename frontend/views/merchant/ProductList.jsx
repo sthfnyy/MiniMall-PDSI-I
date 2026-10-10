@@ -40,81 +40,14 @@ export default function ProductList({
 
   // Modal states
   const [viewProduct, setViewProduct] = useState(null);
-  const [editProduct, setEditProduct] = useState(null);
-  const [isCreating, setIsCreating] = useState(false);
   const [deleteProduct, setDeleteProduct] = useState(null);
 
-  // Form states for Create / Edit
-  const [formName, setFormName] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formPrice, setFormPrice] = useState("");
-  const [formSale, setFormSale] = useState("");
-  const [formCategory, setFormCategory] = useState("");
-  const [formVariations, setFormVariations] = useState("");
-  const [formImage, setFormImage] = useState("");
-  const [formError, setFormError] = useState("");
-
-  // Open edit modal pre-filled
   function handleOpenEdit(p) {
-    setEditProduct(p);
-    setIsCreating(false);
-    setFormName(p.name || "");
-    setFormDescription(p.description || "");
-    setFormPrice(p.price !== undefined ? String(p.price) : "");
-    setFormSale(p.sale ? String(p.sale) : "");
-    setFormCategory(p.category || store?.category || data.categories?.[0] || "");
-    setFormVariations(Array.isArray(p.variations) ? p.variations.join(", ") : "");
-    setFormImage(p.image || "");
-    setFormError("");
+    go(`lojista/produtos/editar/${p.id}`);
   }
 
-  // Open create modal clean
   function handleOpenCreate() {
-    setEditProduct(null);
-    setIsCreating(true);
-    setFormName("");
-    setFormDescription("");
-    setFormPrice("");
-    setFormSale("");
-    setFormCategory(store?.category || data.categories?.[0] || "");
-    setFormVariations("");
-    setFormImage("/images/shirt.jpg");
-    setFormError("");
-  }
-
-  function handleSaveProduct(e) {
-    e.preventDefault();
-    setFormError("");
-
-    try {
-      const payload = {
-        name: formName,
-        description: formDescription,
-        price: formPrice,
-        sale: formSale,
-        category: formCategory,
-        variations: formVariations,
-        image: formImage,
-      };
-
-      if (isCreating) {
-        update((draft) => {
-          createStoreProduct(draft, user, payload);
-          return draft;
-        });
-        if (notify) notify(`Produto "${formName}" cadastrado com sucesso!`);
-        setIsCreating(false);
-      } else if (editProduct) {
-        update((draft) => {
-          updateStoreProduct(draft, user, editProduct.id, payload);
-          return draft;
-        });
-        if (notify) notify(`Produto "${formName}" atualizado com sucesso!`);
-        setEditProduct(null);
-      }
-    } catch (err) {
-      setFormError(err.message || "Erro ao salvar produto.");
-    }
+    go("lojista/produtos/novo");
   }
 
   function handleConfirmDelete() {
@@ -449,124 +382,6 @@ export default function ProductList({
               </div>
             </div>
           </div>
-        </Modal>
-      )}
-
-      {/* MODAL DE CADASTRO OU EDIÇÃO */}
-      {(isCreating || editProduct) && (
-        <Modal
-          title={isCreating ? "Cadastrar Produto" : "Editar Produto"}
-          onClose={() => {
-            setIsCreating(false);
-            setEditProduct(null);
-          }}
-          wide
-        >
-          <form onSubmit={handleSaveProduct} className="merchant-product-form">
-            <div className="merchant-grid">
-              <Field label="Nome do produto *">
-                <input
-                  type="text"
-                  required
-                  minLength={2}
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
-                  placeholder="Ex: Blusa Manga Curta Algodão"
-                />
-              </Field>
-
-              <Field label="Categoria *">
-                <select
-                  value={formCategory}
-                  onChange={(e) => setFormCategory(e.target.value)}
-                  required
-                >
-                  {(data.categories || []).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-
-            <div className="merchant-grid">
-              <Field label="Preço de venda (R$) *">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  required
-                  value={formPrice}
-                  onChange={(e) => setFormPrice(e.target.value)}
-                  placeholder="0,00"
-                />
-              </Field>
-
-              <Field label="Preço promocional (R$) (opcional)">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formSale}
-                  onChange={(e) => setFormSale(e.target.value)}
-                  placeholder="Deixe em branco se não houver promoção"
-                />
-              </Field>
-            </div>
-
-            <Field label="Descrição detalhada">
-              <textarea
-                rows={3}
-                value={formDescription}
-                onChange={(e) => setFormDescription(e.target.value)}
-                placeholder="Descreva detalhes como material, medidas, diferenciais e recomendações..."
-              />
-            </Field>
-
-            <Field label="Variações disponíveis (separadas por vírgula)">
-              <input
-                type="text"
-                value={formVariations}
-                onChange={(e) => setFormVariations(e.target.value)}
-                placeholder="Ex: P, M, G, GG ou Preto, Azul, Branco"
-              />
-            </Field>
-
-            <Field label="URL da Imagem ou foto (opcional)">
-              <input
-                type="text"
-                value={formImage}
-                onChange={(e) => setFormImage(e.target.value)}
-                placeholder="/images/shirt.jpg ou https://..."
-              />
-            </Field>
-
-            {formError && (
-              <div className="error-banner" role="alert">
-                <AlertTriangle size={18} />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <div className="consumer-form-actions section-space">
-              <button
-                type="button"
-                className="secondary"
-                onClick={() => {
-                  setIsCreating(false);
-                  setEditProduct(null);
-                }}
-              >
-                Cancelar
-              </button>
-
-              <button type="submit" className="primary">
-                <Check size={16} />
-                {isCreating ? "Cadastrar produto" : "Salvar alterações"}
-              </button>
-            </div>
-          </form>
         </Modal>
       )}
 
