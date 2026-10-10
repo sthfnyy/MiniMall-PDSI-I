@@ -11,6 +11,7 @@ import {
   User,
   X,
   MessageCircle,
+  Package,
 } from "lucide-react";
 
 import Home from "./views/Home";
@@ -25,6 +26,7 @@ import ConsumerPoints from "./views/consumer/ConsumerPoints";
 import ConsumerReviews from "./views/consumer/ConsumerReviews";
 import ReviewForm from "./views/consumer/ReviewForm";
 import StoreSettings from "./views/merchant/StoreSettings";
+import ProductList from "./views/merchant/ProductList";
 
 import StoreCard from "./components/StoreCard";
 import { Modal, Empty } from "./components/ui";
@@ -306,7 +308,10 @@ export default function App() {
       : []),
 
     ...(user?.role === "lojista"
-      ? [["lojista", "Minha loja", Store]]
+      ? [
+          ["lojista", "Minha loja", Store],
+          ["lojista/produtos", "Meus produtos", Package],
+        ]
       : []),
 
     ...(user?.role === "administrador"
@@ -786,6 +791,31 @@ export default function App() {
             />
           ))}
 
+        {/* CATÁLOGO DE PRODUTOS DO LOJISTA */}
+        {route === "lojista/produtos" &&
+          (user?.role === "lojista" ? (
+            <ProductList
+              user={user}
+              data={data}
+              update={update}
+              go={go}
+              notify={setToast}
+            />
+          ) : (
+            <Empty
+              title="Acesso restrito"
+              text="Entre com uma conta de lojista para gerenciar o catálogo de produtos."
+              action={
+                <button
+                  className="primary"
+                  onClick={() => go("login")}
+                >
+                  Entrar
+                </button>
+              }
+            />
+          ))}
+
         {/* ROTA NÃO ENCONTRADA */}
         {![
           "inicio",
@@ -799,6 +829,7 @@ export default function App() {
           "consumidor/pontos",
           "consumidor/avaliacoes",
           "lojista",
+          "lojista/produtos",
         ].includes(route) &&
           !product &&
           !store &&
