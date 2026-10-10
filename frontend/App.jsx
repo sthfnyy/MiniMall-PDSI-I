@@ -24,6 +24,7 @@ import ConsumerFavorites from "./views/consumer/ConsumerFavorites";
 import ConsumerPoints from "./views/consumer/ConsumerPoints";
 import ConsumerReviews from "./views/consumer/ConsumerReviews";
 import ReviewForm from "./views/consumer/ReviewForm";
+import StoreSettings from "./views/merchant/StoreSettings";
 
 import StoreCard from "./components/StoreCard";
 import { Modal, Empty } from "./components/ui";
@@ -108,7 +109,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const protectedRoute = route === "admin" || route.startsWith("consumidor");
+    const protectedRoute =
+      route === "admin" ||
+      route.startsWith("consumidor") ||
+      route.startsWith("lojista");
     if (!authLoading && authUser && (route === "login" || protectedRoute)) {
       go("inicio");
     }
@@ -299,6 +303,10 @@ export default function App() {
 
     ...(user?.role === "consumidor"
       ? [["consumidor", "Minha conta", User]]
+      : []),
+
+    ...(user?.role === "lojista"
+      ? [["lojista", "Minha loja", Store]]
       : []),
 
     ...(user?.role === "administrador"
@@ -551,6 +559,8 @@ export default function App() {
                   go("admin");
                 } else if (result.role === "consumidor") {
                   go("consumidor");
+                } else if (result.role === "lojista") {
+                  go("lojista");
                 } else {
                   go("explorar");
                 }
@@ -737,6 +747,45 @@ export default function App() {
             />
           ))}
 
+        {/* PAINEL DO LOJISTA / CONFIGURAÇÃO DA LOJA */}
+        {route === "lojista" &&
+          (user?.role === "lojista" ? (
+            <StoreSettings
+              user={user}
+              data={data}
+              go={go}
+              notify={setToast}
+              onSaveStore={(savedStore) => {
+                update((draft) => {
+                  const index = draft.stores.findIndex(
+                    (s) => s.id === savedStore.id,
+                  );
+
+                  if (index !== -1) {
+                    draft.stores[index] = savedStore;
+                  } else {
+                    draft.stores.push(savedStore);
+                  }
+
+                  return draft;
+                });
+              }}
+            />
+          ) : (
+            <Empty
+              title="Acesso restrito"
+              text="Entre com uma conta de lojista para gerenciar sua loja."
+              action={
+                <button
+                  className="primary"
+                  onClick={() => go("login")}
+                >
+                  Entrar
+                </button>
+              }
+            />
+          ))}
+
         {/* ROTA NÃO ENCONTRADA */}
         {![
           "inicio",
@@ -749,6 +798,7 @@ export default function App() {
           "consumidor/favoritos",
           "consumidor/pontos",
           "consumidor/avaliacoes",
+          "lojista",
         ].includes(route) &&
           !product &&
           !store &&

@@ -1,4 +1,4 @@
-import { getSupabaseClient } from "./supabase.js";
+import { getSupabaseClient, isSupabaseConfigured } from "./supabase.js";
 
 export const DEMO_PASSWORD = "Demo1234!";
 const KEY = "minimall-delivery-credentials-v1";
@@ -24,28 +24,66 @@ async function digest(password, salt) {
     b.toString(16).padStart(2, "0"),
   ).join("");
 }
-export async function signIn(
-  _users,
-  email,
-  password,
-  client = getSupabaseClient(),
-) {
-  const { data, error } = await client.auth.signInWithPassword({
-    email: email.trim(),
-    password,
-  });
 
-  if (error) throw new Error(error.message || "Não foi possível entrar.");
-  if (!data.session || !data.user) {
-    throw new Error("O Supabase não retornou uma sessão válida.");
+export async function signIn(users, email, password, client) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // Se um client foi passado explicitamente (ex: em testes unitários)
+  if (client !== undefined) {
+    const { data, error } = await client.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) throw new Error(error.message || "Não foi possível entrar.");
+    if (!data.session || !data.user) {
+      throw new Error("O Supabase não retornou uma sessão válida.");
+    }
+
+    return {
+      user: data.user,
+      session: data.session,
+      accessToken: data.session.access_token,
+    };
   }
 
-  return {
-    user: data.user,
-    session: data.session,
-    accessToken: data.session.access_token,
-  };
+  // Se o Supabase estiver configurado com variáveis de ambiente
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (!error && data.session && data.user) {
+        return {
+          user: data.user,
+          session: data.session,
+          accessToken: data.session.access_token,
+        };
+      }
+    } catch {
+      // Falha de conexão Supabase, tenta autenticação local abaixo se for conta demo/local
+    }
+  }
+
+  // Autenticação local / demonstração (ex: lojista@exemplo.com)
+  const user = users?.find(
+    (u) => u.email.toLowerCase() === normalizedEmail,
+  );
+  if (!user) throw new Error("E-mail ou senha inválidos.");
+
+  const credentials = JSON.parse(localStorage.getItem(KEY) || "{}");
+  const saved = credentials[user.id];
+  const valid = saved
+    ? (await digest(password, saved.salt)) === saved.hash
+    : !user.id.startsWith("user-") && password === DEMO_PASSWORD;
+
+  if (!valid) throw new Error("E-mail ou senha inválidos.");
+  return user;
 }
+
 export async function signUp(users, values) {
   const email = values.email.trim().toLowerCase();
   if (users.some((u) => u.email.toLowerCase() === email))
@@ -68,28 +106,62 @@ export async function signUp(users, values) {
   return user;
 }
 
-export async function getCurrentSession(client = getSupabaseClient()) {
-  const { data, error } = await client.auth.getSession();
+export async function getCurrentSession(client) {
+  if (client !== undefined) {
+    const { data, error } = await client.auth.getSession();
+    if (error) {
+      throw new Error(error.message || "Não foi possível recuperar a sessão.");
+    }
+    return data.session;
+  }
+
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const { data, error } = await getSupabaseClient().auth.getSession();
   if (error) {
     throw new Error(error.message || "Não foi possível recuperar a sessão.");
   }
   return data.session;
 }
 
-export function observeAuthChanges(callback, client = getSupabaseClient()) {
-  const { data } = client.auth.onAuthStateChange((_event, session) => {
-    callback(session);
-  });
+export function observeAuthChanges(callback, client) {
+  if (client !== undefined) {
+    const { data } = client.auth.onAuthStateChange((_event, session) => {
+      callback(session);
+    });
+
+    return () => data.subscription.unsubscribe();
+  }
+
+  if (!isSupabaseConfigured()) {
+    return () => {};
+  }
+
+  const { data } = getSupabaseClient().auth.onAuthStateChange(
+    (_event, session) => {
+      callback(session);
+    },
+  );
 
   return () => data.subscription.unsubscribe();
 }
 
-export async function signOut(client = getSupabaseClient()) {
-  const { error } = await client.auth.signOut();
-  if (error) throw new Error(error.message || "Não foi possível sair.");
+export async function signOut(client) {
+  if (client !== undefined) {
+    const { error } = await client.auth.signOut();
+    if (error) throw new Error(error.message || "Não foi possível sair.");
+    return;
+  }
+
+  if (isSupabaseConfigured()) {
+    const { error } = await getSupabaseClient().auth.signOut();
+    if (error) throw new Error(error.message || "Não foi possível sair.");
+  }
 }
 
-export async function getAccessToken(client = getSupabaseClient()) {
+export async function getAccessToken(client) {
   const session = await getCurrentSession(client);
   return session?.access_token ?? null;
 }
