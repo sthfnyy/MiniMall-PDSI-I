@@ -2587,3 +2587,214 @@ td {
     font-size: 30px;
   }
 }
+
+/* =========================================================
+   PAINEL DO LOJISTA (CONFIGURAÇÃO DA LOJA)
+   ========================================================= */
+
+.merchant-page {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 56px 0 90px;
+}
+
+.merchant-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 16px rgba(38, 48, 40, 0.03);
+}
+
+.merchant-identity-preview {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: 1;
+}
+
+.merchant-identity-preview .store-emblem {
+  width: 60px;
+  height: 60px;
+  flex: 0 0 60px;
+}
+
+.merchant-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.merchant-title-row h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.5px;
+}
+
+.merchant-status-desc {
+  margin: 4px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.status-badge.approved {
+  background: #eaf5ea;
+  color: #276738;
+  border-color: #c2e2c6;
+}
+
+.status-badge.pending {
+  background: #fef9c3;
+  color: #854d0e;
+  border-color: #fde047;
+}
+
+.status-badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+
+.merchant-view-btn {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.merchant-empty-notice {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  background: #f4f7ee;
+  border: 1px dashed #b9cbb4;
+  border-radius: 20px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  color: var(--ink);
+}
+
+.merchant-empty-notice svg {
+  flex: 0 0 32px;
+  color: #4a6344;
+}
+
+.merchant-empty-notice h3 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.merchant-empty-notice p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.merchant-form-card {
+  padding: 36px;
+}
+
+.merchant-form {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.merchant-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+
+.merchant-form-section:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.merchant-form-section h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.merchant-form-section > p.muted {
+  margin: -8px 0 8px;
+  font-size: 13px;
+}
+
+.merchant-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 14px;
+}
+
+.merchant-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .merchant-status-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .merchant-view-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .merchant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-actions {
+    flex-direction: column-reverse;
+  }
+
+  .merchant-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}

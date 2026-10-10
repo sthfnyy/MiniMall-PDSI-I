@@ -65,6 +65,7 @@ export const seed = {
   stores: [
     {
       id: 1,
+      owner: "merchant",
       name: "Dona Flor",
       category: "Vestuário",
       initials: "df",

@@ -14,6 +14,11 @@ import {
   getUserReviews,
   publishReview,
 } from "../services/reviews.js";
+import {
+  getMerchantStore,
+  saveMerchantStore,
+  validateStoreData,
+} from "../services/merchant.js";
 const fresh = () => structuredClone(seed);
 test("vitrine combina busca sem acentos, loja, categoria e preço", () => {
   assert.deepEqual(
@@ -425,6 +430,134 @@ test("publicação rejeita perfil, nota e comentário inválidos", () => {
   assert.throws(
     () => publishReview(data, { user: merchant, store, rating: 5, comment: "Texto" }),
     /consumidores/,
+  );
+});
+
+test("getMerchantStore localiza a loja vinculada ao lojista", () => {
+  const data = fresh();
+  const merchantUser = data.users.find((u) => u.id === "merchant");
+  const store = getMerchantStore(data, merchantUser);
+
+  assert.ok(store);
+  assert.equal(store.id, 1);
+  assert.equal(store.name, "Dona Flor");
+
+  const consumerUser = data.users.find((u) => u.id === "consumer");
+  assert.equal(getMerchantStore(data, consumerUser), null);
+  assert.equal(getMerchantStore(data, null), null);
+});
+
+test("saveMerchantStore atualiza os dados da própria loja existente", () => {
+  const data = fresh();
+  const merchantUser = data.users.find((u) => u.id === "merchant");
+
+  const updated = saveMerchantStore(data, merchantUser, {
+    name: "Dona Flor Modas",
+    description: "Nova descrição completa da loja de roupas.",
+    whatsapp: "89981234567",
+    address: "Rua Nova, 123, Centro, Picos – PI",
+    category: "Vestuário",
+    hours: "Segunda a sábado, 8h às 19h",
+    instagram: "@donaflormodas",
+  });
+
+  assert.equal(updated.isNew, false);
+  assert.equal(updated.store.id, 1);
+  assert.equal(updated.store.name, "Dona Flor Modas");
+  assert.equal(updated.store.description, "Nova descrição completa da loja de roupas.");
+  assert.equal(updated.store.whatsapp, "89981234567");
+  assert.equal(updated.store.address, "Rua Nova, 123, Centro, Picos – PI");
+  assert.equal(updated.store.status, "aprovada"); // Preserva status aprovada existente
+  assert.equal(updated.store.initials, "df");
+
+  const fromData = data.stores.find((s) => s.id === 1);
+  assert.equal(fromData.name, "Dona Flor Modas");
+  assert.equal(fromData.whatsapp, "89981234567");
+});
+
+test("saveMerchantStore cadastra uma nova loja vinculada ao lojista com status pendente", () => {
+  const data = fresh();
+  const newMerchant = {
+    id: "lojista-2",
+    name: "Carlos Calçados",
+    email: "carlos@exemplo.com",
+    role: "lojista",
+  };
+  data.users.push(newMerchant);
+
+  assert.equal(getMerchantStore(data, newMerchant), null);
+
+  const result = saveMerchantStore(data, newMerchant, {
+    name: "Picos Calçados",
+    description: "Sapataria e calçados em couro.",
+    whatsapp: "89994445555",
+    address: "Avenida Central, 400, Canto da Várzea, Picos – PI",
+    category: "Calçados",
+    hours: "Segunda a sexta, 8h às 18h",
+  });
+
+  assert.equal(result.isNew, true);
+  assert.ok(result.store.id > 5);
+  assert.equal(result.store.owner, "lojista-2");
+  assert.equal(result.store.name, "Picos Calçados");
+  assert.equal(result.store.status, "pendente"); // Nova loja inicia pendente
+  assert.equal(result.store.whatsapp, "89994445555");
+  assert.equal(result.store.address, "Avenida Central, 400, Canto da Várzea, Picos – PI");
+  assert.equal(result.store.initials, "pc");
+
+  // Agora getMerchantStore localiza a nova loja
+  const found = getMerchantStore(data, newMerchant);
+  assert.ok(found);
+  assert.equal(found.id, result.store.id);
+});
+
+test("saveMerchantStore valida campos obrigatórios (nome, WhatsApp e localização)", () => {
+  const data = fresh();
+  const merchantUser = data.users.find((u) => u.id === "merchant");
+
+  // Nome inválido
+  assert.throws(
+    () =>
+      saveMerchantStore(data, merchantUser, {
+        name: " ",
+        whatsapp: "89999999999",
+        address: "Rua Centro",
+      }),
+    /nome da loja/,
+  );
+
+  // WhatsApp inválido
+  assert.throws(
+    () =>
+      saveMerchantStore(data, merchantUser, {
+        name: "Loja Teste",
+        whatsapp: "123",
+        address: "Rua Centro",
+      }),
+    /WhatsApp/,
+  );
+
+  // Localização / Endereço inválido
+  assert.throws(
+    () =>
+      saveMerchantStore(data, merchantUser, {
+        name: "Loja Teste",
+        whatsapp: "89999999999",
+        address: " ",
+      }),
+    /localização ou endereço/,
+  );
+
+  // Perfil não lojista
+  const consumerUser = data.users.find((u) => u.id === "consumer");
+  assert.throws(
+    () =>
+      saveMerchantStore(data, consumerUser, {
+        name: "Loja Teste",
+        whatsapp: "89999999999",
+        address: "Rua Centro",
+      }),
+    /lojistas/,
   );
 });
 
