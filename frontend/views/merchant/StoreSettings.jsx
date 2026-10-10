@@ -17,6 +17,7 @@ import {
 import { Field, PageTitle } from "../../components/ui";
 import StoreIdentity from "../../components/StoreIdentity";
 import { getMerchantStore, saveMerchantStore } from "../../services/merchant";
+import MerchantNav from "./MerchantNav";
 
 export default function StoreSettings({
   user,
@@ -124,6 +125,8 @@ export default function StoreSettings({
         title="Configuração da Loja"
         text="Cadastre e mantenha atualizadas as informações da sua loja para os clientes no MiniMall."
       />
+
+      <MerchantNav current="configuracao" go={go} />
 
       {currentStore ? (
         <div className="merchant-status-banner">

@@ -18,6 +18,10 @@ import {
   getMerchantStore,
   saveMerchantStore,
   validateStoreData,
+  getStoreProducts,
+  deleteStoreProduct,
+  updateStoreProduct,
+  createStoreProduct,
 } from "../services/merchant.js";
 const fresh = () => structuredClone(seed);
 test("vitrine combina busca sem acentos, loja, categoria e preço", () => {
@@ -560,4 +564,120 @@ test("saveMerchantStore valida campos obrigatórios (nome, WhatsApp e localizaç
     /lojistas/,
   );
 });
+
+test("getStoreProducts lista somente os produtos ativos da loja do lojista", () => {
+  const data = fresh();
+  // Loja 1 possui produtos cadastrados no seed
+  const store1Products = getStoreProducts(data, 1);
+  assert.ok(store1Products.length > 0);
+  assert.ok(store1Products.every((p) => p.store === 1 && !p.deleted));
+
+  // Produtos de outra loja não aparecem
+  const store2Products = getStoreProducts(data, 2);
+  assert.ok(store2Products.every((p) => p.store === 2));
+
+  // Produto marcado como excluído não deve constar
+  data.products.find((p) => p.store === 1).deleted = true;
+  const afterDelete = getStoreProducts(data, 1);
+  assert.equal(afterDelete.length, store1Products.length - 1);
+});
+
+test("deleteStoreProduct marca o produto como excluído e o remove da listagem", () => {
+  const data = fresh();
+  const merchantUser = data.users.find((u) => u.id === "merchant");
+  const storeProductsBefore = getStoreProducts(data, 1);
+  const targetProduct = storeProductsBefore[0];
+
+  deleteStoreProduct(data, merchantUser, targetProduct.id);
+
+  assert.equal(targetProduct.deleted, true);
+  const storeProductsAfter = getStoreProducts(data, 1);
+  assert.equal(storeProductsAfter.length, storeProductsBefore.length - 1);
+  assert.ok(!storeProductsAfter.some((p) => p.id === targetProduct.id));
+
+  // Tentar excluir produto inexistente deve falhar
+  assert.throws(
+    () => deleteStoreProduct(data, merchantUser, 9999),
+    /não encontrado/,
+  );
+});
+
+test("updateStoreProduct edita com sucesso as informações do produto e valida regras", () => {
+  const data = fresh();
+  const merchantUser = data.users.find((u) => u.id === "merchant");
+  const productToEdit = getStoreProducts(data, 1)[0];
+
+  const result = updateStoreProduct(data, merchantUser, productToEdit.id, {
+    name: "Camisa de Linho Atualizada",
+    description: "Nova descrição do linho.",
+    price: 199.9,
+    sale: 149.9,
+    category: "Vestuário",
+    variations: "P, M, G, XG",
+  });
+
+  assert.equal(result.product.name, "Camisa de Linho Atualizada");
+  assert.equal(result.product.price, 199.9);
+  assert.equal(result.product.sale, 149.9);
+  assert.deepEqual(result.product.variations, ["P", "M", "G", "XG"]);
+
+  // Validação: nome vazio
+  assert.throws(
+    () =>
+      updateStoreProduct(data, merchantUser, productToEdit.id, {
+        name: "",
+        price: 100,
+      }),
+    /nome do produto/,
+  );
+
+  // Validação: preço inválido
+  assert.throws(
+    () =>
+      updateStoreProduct(data, merchantUser, productToEdit.id, {
+        name: "Produto Válido",
+        price: -10,
+      }),
+    /preço válido/,
+  );
+
+  // Validação: preço promocional maior ou igual ao preço de venda
+  assert.throws(
+    () =>
+      updateStoreProduct(data, merchantUser, productToEdit.id, {
+        name: "Produto Válido",
+        price: 100,
+        sale: 120,
+      }),
+    /menor que o preço original/,
+  );
+});
+
+test("createStoreProduct adiciona um novo produto ao catálogo da loja", () => {
+  const data = fresh();
+  const merchantUser = data.users.find((u) => u.id === "merchant");
+  const initialCount = getStoreProducts(data, 1).length;
+
+  const result = createStoreProduct(data, merchantUser, {
+    name: "Vestido Floral de Verão",
+    description: "Vestido leve e estampado.",
+    price: 180,
+    sale: 150,
+    category: "Vestuário",
+    variations: "P, M",
+    image: "/images/shirt.jpg",
+  });
+
+  assert.ok(result.product.id > 0);
+  assert.equal(result.product.store, 1);
+  assert.equal(result.product.name, "Vestido Floral de Verão");
+  assert.equal(result.product.price, 180);
+  assert.equal(result.product.sale, 150);
+  assert.deepEqual(result.product.variations, ["P", "M"]);
+
+  const updatedProducts = getStoreProducts(data, 1);
+  assert.equal(updatedProducts.length, initialCount + 1);
+  assert.ok(updatedProducts.some((p) => p.id === result.product.id));
+});
+
 

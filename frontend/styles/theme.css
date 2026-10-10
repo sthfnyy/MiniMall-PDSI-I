@@ -2798,3 +2798,424 @@ td {
     justify-content: center;
   }
 }
+
+/* =========================================================
+   CATÁLOGO DE PRODUTOS DO LOJISTA (ISSUE #32)
+   ========================================================= */
+
+.merchant-navigation {
+  margin-bottom: 28px;
+}
+
+.merchant-navigation button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.merchant-products-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px 22px;
+  margin-bottom: 24px;
+}
+
+.merchant-toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.merchant-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  flex: 1;
+  max-width: 380px;
+}
+
+.merchant-search-box input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  font-size: 14px;
+  color: var(--ink);
+  outline: none;
+}
+
+.merchant-category-select {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.merchant-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.merchant-count-badge {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.empty-products-panel {
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.merchant-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 22px;
+}
+
+.merchant-product-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.merchant-product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(38, 48, 40, 0.05);
+}
+
+.merchant-card-media {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  background: var(--paper);
+  overflow: hidden;
+}
+
+.merchant-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.merchant-product-card:hover .merchant-card-media img {
+  transform: scale(1.03);
+}
+
+.product-sale-tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: #b91c1c;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.merchant-card-info {
+  padding: 20px 20px 14px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.merchant-card-category {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.merchant-card-title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.merchant-card-pricing {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.merchant-price {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.merchant-price.sale {
+  color: #b91c1c;
+}
+
+.merchant-price.original {
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: line-through;
+  font-weight: 400;
+}
+
+.merchant-card-variations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.variation-pill {
+  font-size: 11px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.variation-pill.active {
+  background: #edf2e1;
+  border-color: #b8c2aa;
+  color: #3b4d37;
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+.variation-pill.more {
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+.merchant-card-actions {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  background: #fafbfa;
+}
+
+.icon-action-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 8px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.icon-action-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.icon-action-btn:hover {
+  background: #f0f4ea;
+}
+
+.icon-action-btn.view-btn:hover {
+  color: #2e5b30;
+}
+
+.icon-action-btn.edit-btn:hover {
+  color: #1e40af;
+}
+
+.icon-action-btn.delete-btn:hover {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+/* Modal de Detalhe do Produto */
+.merchant-modal-detail {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 28px;
+  padding: 10px 0;
+}
+
+.merchant-detail-image-wrap {
+  width: 100%;
+  height: 280px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--border);
+}
+
+.merchant-detail-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.merchant-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.merchant-detail-content h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.merchant-detail-prices {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.detail-price-sale {
+  font-size: 26px;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.detail-price-orig {
+  font-size: 16px;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.detail-price-regular {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.merchant-detail-section h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+
+.merchant-detail-section p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.merchant-variations-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.merchant-detail-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+/* Modal de exclusão */
+.merchant-delete-confirm {
+  text-align: center;
+  padding: 10px 10px 0;
+}
+
+.delete-warning-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-confirm-btn {
+  background: #dc2626 !important;
+  border-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+.delete-confirm-btn:hover {
+  background: #b91c1c !important;
+}
+
+@media (max-width: 768px) {
+  .merchant-products-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .merchant-toolbar-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .merchant-search-box {
+    max-width: 100%;
+  }
+
+  .merchant-toolbar-actions {
+    justify-content: space-between;
+  }
+
+  .merchant-modal-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-detail-image-wrap {
+    height: 200px;
+  }
+
+  .merchant-detail-footer-actions {
+    flex-direction: column;
+  }
+
+  .merchant-detail-footer-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}
