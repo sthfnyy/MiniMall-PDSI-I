@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -60,6 +61,32 @@ class ConsumerProfileUpdate(BaseModel):
         if value is None or not value.strip():
             raise ValueError("nome_completo não pode ser vazio")
         return value.strip()
+
+
+class FavoritoCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    produto_id: uuid.UUID
+
+
+class ProdutoFavoritoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    loja_id: uuid.UUID
+    categoria_id: uuid.UUID
+    titulo: str
+    descricao: str | None
+    preco_base: Decimal
+    foto_principal_url: str | None
+    ativo: bool
+    criado_em: datetime
+    atualizado_em: datetime
+
+
+class FavoritoOut(BaseModel):
+    criado_em: datetime
+    produto: ProdutoFavoritoOut
 
 
 class CategoriaOut(BaseModel):
