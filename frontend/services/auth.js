@@ -165,3 +165,15 @@ export async function getAccessToken(client) {
   const session = await getCurrentSession(client);
   return session?.access_token ?? null;
 }
+
+export function isConsumerRoute(route) {
+  return (
+    route === "consumidor" ||
+    (typeof route === "string" && route.startsWith("consumidor/"))
+  );
+}
+
+export function canAccessConsumerRoute(route, user) {
+  if (!isConsumerRoute(route)) return true;
+  return Boolean(user && user.role === "consumidor");
+}

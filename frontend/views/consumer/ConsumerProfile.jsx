@@ -8,6 +8,7 @@ import {
   Heart,
   Coins,
   Star,
+  LogOut,
 } from "lucide-react";
 import { Field } from "../../components/ui";
 
@@ -17,6 +18,7 @@ export default function ConsumerProfile({
   onFavorites,
   onPoints,
   onReviews,
+  onLogout,
 }) {
   const [editing, setEditing] = useState(false);
 
@@ -151,6 +153,17 @@ export default function ConsumerProfile({
               <Star size={17} />
               Minhas avaliações
             </button>
+
+            {onLogout && (
+              <button
+                className="secondary"
+                type="button"
+                onClick={onLogout}
+              >
+                <LogOut size={17} />
+                Sair da conta
+              </button>
+            )}
           </div>
         )}
       </div>
