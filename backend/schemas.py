@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .models import StatusLoja, UserRole
 
@@ -106,6 +106,32 @@ class AvaliacaoOut(BaseModel):
     id: uuid.UUID
     loja_id: uuid.UUID
     usuario_id: uuid.UUID
+    nota: int
+    comentario: str | None
+    foto_url: str
+    criado_em: datetime
+
+
+class ConsumerAvaliacaoCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    loja_id: uuid.UUID
+    nota: int = Field(strict=True, ge=1, le=5)
+    comentario: str | None = None
+
+
+class ConsumerAvaliacaoUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nota: int = Field(default=None, strict=True, ge=1, le=5)
+    comentario: str | None = None
+
+
+class ConsumerAvaliacaoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    loja_id: uuid.UUID
     nota: int
     comentario: str | None
     foto_url: str
