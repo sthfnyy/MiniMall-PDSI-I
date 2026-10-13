@@ -39,6 +39,7 @@ import {
   getCurrentSession,
   observeAuthChanges,
   signOut,
+  isConsumerRoute,
 } from "./services/auth";
 
 const emptyFilters = {
@@ -63,6 +64,27 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [contact, setContact] = useState(null);
 
+  const currentUser =
+    user ||
+    (authUser
+      ? data.users.find(
+          (u) =>
+            (authUser.email &&
+              u.email?.toLowerCase() === authUser.email.toLowerCase()) ||
+            u.id === authUser.id,
+        ) || {
+          id: authUser.id,
+          name:
+            authUser.user_metadata?.name ||
+            authUser.email?.split("@")[0] ||
+            "Consumidor",
+          email: authUser.email || "",
+          role: authUser.user_metadata?.role || "consumidor",
+          status: "Ativo",
+          favorites: [],
+        }
+      : null);
+
   const go = (path) => {
     location.hash = path;
   };
@@ -75,7 +97,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      if (authSession) await signOut();
+      await signOut();
       setUser(null);
       applyAuthSession(null);
       go("inicio");
@@ -112,14 +134,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const protectedRoute =
-      route === "admin" ||
-      route.startsWith("consumidor") ||
-      route.startsWith("lojista");
-    if (!authLoading && authUser && (route === "login" || protectedRoute)) {
+    if (authLoading) return;
+
+    if (!currentUser && isConsumerRoute(route)) {
+      go("login");
+      return;
+    }
+
+    if (currentUser && route === "login") {
       go("inicio");
     }
-  }, [authLoading, authUser, route]);
+  }, [authLoading, currentUser, route]);
 
   useEffect(() => {
     const change = () => {
@@ -216,23 +241,27 @@ export default function App() {
     go(`loja/${id}`);
 
   const isFavorite = (productId) => {
-    if (!user || user.role !== "consumidor") {
+    if (!currentUser || currentUser.role !== "consumidor") {
       return false;
     }
 
-    const currentUser = data.users.find(
-      (u) => u.id === user.id,
+    const currentConsumerData = data.users.find(
+      (u) => u.id === currentUser.id,
     );
 
     return (
+      currentConsumerData?.favorites?.some(
+        (id) => Number(id) === Number(productId),
+      ) ||
       currentUser?.favorites?.some(
         (id) => Number(id) === Number(productId),
-      ) || false
+      ) ||
+      false
     );
   };
 
   const toggleFavorite = (product) => {
-    if (!user || user.role !== "consumidor") {
+    if (!currentUser || currentUser.role !== "consumidor") {
       setToast(
         "Entre como consumidor para adicionar favoritos.",
       );
@@ -242,27 +271,30 @@ export default function App() {
     }
 
     update((draft) => {
-      const currentUser = draft.users.find(
-        (u) => u.id === user.id,
+      let currentConsumerData = draft.users.find(
+        (u) => u.id === currentUser.id,
       );
 
-      if (!currentUser) return draft;
+      if (!currentConsumerData) {
+        currentConsumerData = { ...currentUser, favorites: [] };
+        draft.users.push(currentConsumerData);
+      }
 
-      currentUser.favorites =
-        currentUser.favorites || [];
+      currentConsumerData.favorites =
+        currentConsumerData.favorites || [];
 
-      const index = currentUser.favorites.findIndex(
+      const index = currentConsumerData.favorites.findIndex(
         (id) => Number(id) === Number(product.id),
       );
 
       if (index >= 0) {
-        currentUser.favorites.splice(index, 1);
+        currentConsumerData.favorites.splice(index, 1);
 
         setToast(
           `"${product.name}" removido dos favoritos.`,
         );
       } else {
-        currentUser.favorites.push(product.id);
+        currentConsumerData.favorites.push(product.id);
 
         setToast(
           `"${product.name}" adicionado aos favoritos.`,
@@ -272,14 +304,14 @@ export default function App() {
       if (draft.favorites) {
         const favIndex = draft.favorites.findIndex(
           (f) =>
-            f.user === user.id &&
+            f.user === currentUser.id &&
             Number(f.product) === Number(product.id),
         );
         if (index >= 0 && favIndex >= 0) {
           draft.favorites.splice(favIndex, 1);
         } else if (index < 0 && favIndex < 0) {
           draft.favorites.push({
-            user: user.id,
+            user: currentUser.id,
             product: product.id,
             date: new Date().toISOString().split("T")[0],
           });
@@ -304,18 +336,18 @@ export default function App() {
     ["explorar", "Produtos", LayoutGrid],
     ["lojas", "Lojas", Store],
 
-    ...(user?.role === "consumidor"
+    ...(currentUser?.role === "consumidor"
       ? [["consumidor", "Minha conta", User]]
       : []),
 
-    ...(user?.role === "lojista"
+    ...(currentUser?.role === "lojista"
       ? [
           ["lojista", "Minha loja", Store],
           ["lojista/produtos", "Meus produtos", Package],
         ]
       : []),
 
-    ...(user?.role === "administrador"
+    ...(currentUser?.role === "administrador"
       ? [["admin", "Administração", ShieldCheck]]
       : []),
   ];
@@ -412,9 +444,9 @@ export default function App() {
 
           {authLoading ? (
             <span className="muted">Verificando sessão…</span>
-          ) : user || authUser ? (
+          ) : currentUser ? (
             <div className="row account-status">
-              <span>{user?.name || authUser?.email}</span>
+              <span>{currentUser.name || currentUser.email}</span>
 
               <button
                 className="icon-button"
@@ -538,7 +570,7 @@ export default function App() {
 
         {["login", "cadastro"].includes(route) &&
           !authLoading &&
-          (route === "cadastro" || !authUser) && (
+          (route === "cadastro" || !currentUser) && (
             <AuthPage
               key={route}
               mode={route}
@@ -578,9 +610,9 @@ export default function App() {
 
         {/* PERFIL DO CONSUMIDOR */}
         {route === "consumidor" &&
-          (user?.role === "consumidor" ? (
+          (currentUser?.role === "consumidor" ? (
             <ConsumerProfile
-              user={user}
+              user={currentUser}
               onFavorites={() =>
                 go("consumidor/favoritos")
               }
@@ -590,6 +622,7 @@ export default function App() {
               onReviews={() =>
                 go("consumidor/avaliacoes")
               }
+              onLogout={handleLogout}
               onUpdate={(updatedUser) => {
                 setUser(updatedUser);
 
@@ -600,6 +633,8 @@ export default function App() {
 
                   if (index !== -1) {
                     d.users[index] = updatedUser;
+                  } else {
+                    d.users.push(updatedUser);
                   }
 
                   return d;
@@ -625,9 +660,9 @@ export default function App() {
 
         {/* FAVORITOS DO CONSUMIDOR */}
         {route === "consumidor/favoritos" &&
-          (user?.role === "consumidor" ? (
+          (currentUser?.role === "consumidor" ? (
             <ConsumerFavorites
-              user={user}
+              user={currentUser}
               data={data}
               products={products.filter((p) => isFavorite(p.id))}
               onProduct={onProduct}
@@ -653,9 +688,9 @@ export default function App() {
 
         {/* PONTOS DO CONSUMIDOR */}
         {route === "consumidor/pontos" &&
-          (user?.role === "consumidor" ? (
+          (currentUser?.role === "consumidor" ? (
             <ConsumerPoints
-              user={user}
+              user={currentUser}
               data={data}
               go={go}
             />
@@ -676,9 +711,9 @@ export default function App() {
 
         {/* AVALIAÇÕES DO CONSUMIDOR */}
         {route === "consumidor/avaliacoes" &&
-          (user?.role === "consumidor" ? (
+          (currentUser?.role === "consumidor" ? (
             <ConsumerReviews
-              user={user}
+              user={currentUser}
               data={data}
               go={go}
             />
@@ -699,7 +734,7 @@ export default function App() {
 
         {/* CRIAÇÃO DE AVALIAÇÃO */}
         {reviewStore &&
-          (user?.role === "consumidor" ? (
+          (currentUser?.role === "consumidor" ? (
             <ReviewForm
               store={reviewStore}
               onCancel={() => go(`loja/${reviewStore.id}`)}
@@ -707,7 +742,7 @@ export default function App() {
                 const nextData = structuredClone(data);
                 publishReview(nextData, {
                   ...values,
-                  user,
+                  user: currentUser,
                   store: reviewStore,
                 });
                 setData(nextData);
@@ -732,7 +767,7 @@ export default function App() {
 
         {/* ADMINISTRAÇÃO */}
         {route === "admin" &&
-          (user?.role === "administrador" ? (
+          (currentUser?.role === "administrador" ? (
             <Admin
               data={data}
               update={update}
@@ -755,9 +790,9 @@ export default function App() {
 
         {/* PAINEL DO LOJISTA / CONFIGURAÇÃO DA LOJA */}
         {route === "lojista" &&
-          (user?.role === "lojista" ? (
+          (currentUser?.role === "lojista" ? (
             <StoreSettings
-              user={user}
+              user={currentUser}
               data={data}
               go={go}
               notify={setToast}
@@ -794,9 +829,9 @@ export default function App() {
 
         {/* CATÁLOGO DE PRODUTOS DO LOJISTA */}
         {route === "lojista/produtos" &&
-          (user?.role === "lojista" ? (
+          (currentUser?.role === "lojista" ? (
             <ProductList
-              user={user}
+              user={currentUser}
               data={data}
               update={update}
               go={go}
@@ -820,9 +855,9 @@ export default function App() {
         {/* CADASTRO OU EDIÇÃO DE PRODUTO DO LOJISTA */}
         {(route === "lojista/produtos/novo" ||
           route.startsWith("lojista/produtos/editar/")) &&
-          (user?.role === "lojista" ? (
+          (currentUser?.role === "lojista" ? (
             <ProductForm
-              user={user}
+              user={currentUser}
               data={data}
               productId={
                 route.startsWith("lojista/produtos/editar/")
