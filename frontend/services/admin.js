@@ -4,6 +4,63 @@ import { apiRequest } from "./api.js";
 export async function getAdminDashboard() {
   return apiRequest("/admin/dashboard");
 }
+
+export async function getAdminUsers() {
+  return apiRequest("/admin/usuarios");
+}
+
+export async function getAdminCategories() {
+  return apiRequest("/admin/categorias");
+}
+
+export async function createAdminCategory(nome) {
+  return apiRequest("/admin/categorias", {
+    method: "POST",
+    body: JSON.stringify({ nome }),
+  });
+}
+
+export async function updateAdminCategory(id, nome) {
+  return apiRequest(`/admin/categorias/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ nome }),
+  });
+}
+
+export async function deleteAdminCategory(id) {
+  return apiRequest(`/admin/categorias/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export async function getPendingStores() {
+  return apiRequest("/admin/lojas?status_filtro=pendente");
+}
+
+export async function approveAdminStore(id) {
+  return apiRequest(`/admin/lojas/${id}/aprovar`, {
+    method: "PATCH",
+  });
+}
+
+export async function rejectAdminStore(id, motivo_rejeicao) {
+  return apiRequest(`/admin/lojas/${id}/rejeitar`, {
+    method: "PATCH",
+    body: JSON.stringify({ motivo_rejeicao }),
+  });
+}
+
+export async function getAdminReviews() {
+  return apiRequest("/admin/moderacao/avaliacoes");
+}
+
+export async function deleteAdminReview(id) {
+  return apiRequest(`/admin/moderacao/avaliacoes/${id}`, {
+    method: "DELETE",
+  });
+}
+
+
 export function metrics(data) {
   const users = data.users || [];
   const engaged = new Set(data.reviews.map((r) => r.user)).size;
