@@ -1,16 +1,66 @@
-import React from "react";
+
+import React, { useEffect, useState } from "react";
 import { Eye, Store, Package, Users } from "lucide-react";
-import { metrics } from "../../services/admin";
-export default function Dashboard({ data }) {
-  const m = metrics(data);
+import { getAdminDashboard } from "../../services/admin";
+
+export default function Dashboard() {
+  const [metrics, setMetrics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDashboard() {
+      try {
+        const result = await getAdminDashboard();
+
+        if (active) {
+          setMetrics(result);
+        }
+      } catch (err) {
+        if (active) {
+          setError(err.message);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  if (loading) {
+    return <p>Carregando dados administrativos...</p>;
+  }
+
+  if (error) {
+    return <p role="alert">Erro ao carregar dashboard: {error}</p>;
+  }
+
+  if (!metrics) {
+    return <p>Nenhum dado administrativo disponível.</p>;
+  }
+
+  const totalLojas =
+    metrics.total_lojas_aprovadas +
+    metrics.total_lojas_pendentes +
+    metrics.total_lojas_rejeitadas;
+
   return (
     <section aria-label="Dados da plataforma">
       <div className="dashboard-stats four">
         {[
-          [Eye, m.views, "Visualizações"],
-          [Store, m.stores, "Total de lojas"],
-          [Package, m.products, "Produtos cadastrados"],
-          [Users, m.engaged, "Usuários com avaliações"],
+          [Eye, metrics.total_visualizacoes, "Visualizações"],
+          [Store, totalLojas, "Total de lojas"],
+          [Package, metrics.total_produtos, "Produtos cadastrados"],
+          [Users, metrics.total_usuarios, "Usuários cadastrados"],
         ].map(([Icon, value, label]) => (
           <div className="stat" key={label}>
             <Icon />
@@ -19,45 +69,37 @@ export default function Dashboard({ data }) {
           </div>
         ))}
       </div>
+
       <div className="admin-columns">
         <section className="panel">
           <h2>Engajamento dos usuários</h2>
           <dl className="metric-list">
             <div>
               <dt>Avaliações publicadas</dt>
-              <dd>{m.reviews}</dd>
+              <dd>{metrics.total_avaliacoes}</dd>
             </div>
             <div>
-              <dt>Avaliações com foto</dt>
-              <dd>{m.photos}</dd>
+              <dt>Engajamento (avaliações + favoritos)</dt>
+              <dd>{metrics.engajamento_proxy}</dd>
             </div>
             <div>
-              <dt>Usuários que avaliaram uma loja</dt>
-              <dd>
-                {m.engaged} de {m.users}
-              </dd>
+              <dt>Total de usuários</dt>
+              <dd>{metrics.total_usuarios}</dd>
             </div>
           </dl>
-          <progress
-            max="100"
-            value={m.engagement}
-            aria-label="Percentual de usuários com avaliações"
-          />
-          <p>
-            {m.engagement}% dos usuários cadastrados publicaram uma avaliação.
-          </p>
         </section>
+
         <section className="panel">
           <h2>Situação das lojas</h2>
           <dl className="metric-list">
             {[
-              ["aprovada", "Aprovadas"],
-              ["pendente", "Aguardando aprovação"],
-              ["rejeitada", "Rejeitadas"],
-            ].map(([status, label]) => (
-              <div key={status}>
+              ["Aprovadas", metrics.total_lojas_aprovadas],
+              ["Aguardando aprovação", metrics.total_lojas_pendentes],
+              ["Rejeitadas", metrics.total_lojas_rejeitadas],
+            ].map(([label, value]) => (
+              <div key={label}>
                 <dt>{label}</dt>
-                <dd>{data.stores.filter((s) => s.status === status).length}</dd>
+                <dd>{value}</dd>
               </div>
             ))}
           </dl>

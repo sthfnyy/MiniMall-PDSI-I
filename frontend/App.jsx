@@ -37,6 +37,7 @@ import { loadData, saveData } from "./services/storage";
 import { publishReview } from "./services/reviews";
 import {
   getCurrentSession,
+  getAuthenticatedProfile,
   observeAuthChanges,
   signOut,
   isConsumerRoute,
@@ -59,31 +60,26 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authUser, setAuthUser] = useState(null);
   const [authSession, setAuthSession] = useState(null);
+  const [backendProfile, setBackendProfile] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [filters, setFilters] = useState(emptyFilters);
   const [toast, setToast] = useState("");
   const [contact, setContact] = useState(null);
 
-  const currentUser =
-    user ||
-    (authUser
-      ? data.users.find(
-          (u) =>
-            (authUser.email &&
-              u.email?.toLowerCase() === authUser.email.toLowerCase()) ||
-            u.id === authUser.id,
-        ) || {
-          id: authUser.id,
-          name:
-            authUser.user_metadata?.name ||
-            authUser.email?.split("@")[0] ||
-            "Consumidor",
+  
+  const currentUser = authUser
+    ? backendProfile?.id === authUser.id
+      ? {
+          id: backendProfile.id,
+          name: backendProfile.nome_completo || authUser.email,
           email: authUser.email || "",
-          role: authUser.user_metadata?.role || "consumidor",
+          role: backendProfile.role,
           status: "Ativo",
           favorites: [],
         }
-      : null);
+      : null
+    : user;
+
 
   const go = (path) => {
     location.hash = path;
@@ -132,6 +128,34 @@ export default function App() {
       stopObserving();
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadProfile() {
+      setBackendProfile(null);
+
+      if (!authSession?.access_token) return;
+
+      try {
+        const profile = await getAuthenticatedProfile();
+
+        if (active) {
+          setBackendProfile(profile);
+        }
+      } catch (error) {
+        if (active) {
+          console.error("Erro ao consultar perfil:", error.message);
+        }
+      }
+    }
+
+    loadProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [authSession?.access_token]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -347,7 +371,7 @@ export default function App() {
         ]
       : []),
 
-    ...(currentUser?.role === "administrador"
+    ...(currentUser?.role === "admin" && !!authSession && !!backendProfile
       ? [["admin", "Administração", ShieldCheck]]
       : []),
   ];
@@ -767,7 +791,7 @@ export default function App() {
 
         {/* ADMINISTRAÇÃO */}
         {route === "admin" &&
-          (currentUser?.role === "administrador" ? (
+          (currentUser?.role === "admin" && !!authSession && !!backendProfile ? (
             <Admin
               data={data}
               update={update}

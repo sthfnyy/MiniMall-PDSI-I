@@ -177,3 +177,27 @@ export function canAccessConsumerRoute(route, user) {
   if (!isConsumerRoute(route)) return true;
   return Boolean(user && user.role === "consumidor");
 }
+
+export async function getAuthenticatedProfile() {
+  const token = await getAccessToken();
+
+  if (!token) {
+    return null;
+  }
+
+  const apiUrl = import.meta.env.VITE_API_URL;
+
+  const response = await fetch(`${apiUrl}/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Não foi possível carregar o perfil: HTTP ${response.status}`,
+    );
+  }
+
+  return response.json();
+}

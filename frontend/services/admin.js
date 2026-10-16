@@ -1,4 +1,9 @@
 import { normalize } from "./catalog.js";
+import { apiRequest } from "./api.js";
+
+export async function getAdminDashboard() {
+  return apiRequest("/admin/dashboard");
+}
 export function metrics(data) {
   const users = data.users || [];
   const engaged = new Set(data.reviews.map((r) => r.user)).size;

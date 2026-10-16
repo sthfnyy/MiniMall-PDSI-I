@@ -4,6 +4,7 @@ from sqlalchemy import text
 
 from .config.database import async_session
 from .controllers import (
+    auth_profile,
     admin_categorias,
     admin_lojas,
     admin_moderacao,
@@ -25,6 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_profile.router)
 app.include_router(admin_lojas.router)
 app.include_router(admin_moderacao.router)
 app.include_router(admin_categorias.router)
