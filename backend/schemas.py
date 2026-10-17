@@ -127,6 +127,14 @@ class ConsumerAvaliacaoUpdate(BaseModel):
     comentario: str | None = None
 
 
+class ConsumerAvaliacaoFotoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    url: str
+    criado_em: datetime
+
+
 class ConsumerAvaliacaoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -136,6 +144,7 @@ class ConsumerAvaliacaoOut(BaseModel):
     comentario: str | None
     foto_url: str
     criado_em: datetime
+    fotos: list[ConsumerAvaliacaoFotoOut] = Field(default_factory=list)
 
 
 class DashboardOut(BaseModel):
