@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .models import StatusLoja, UserRole
+from .models import StatusLoja, TipoTransacaoPontos, UserRole
 
 
 class LojaOut(BaseModel):
@@ -145,6 +145,29 @@ class ConsumerAvaliacaoOut(BaseModel):
     foto_url: str
     criado_em: datetime
     fotos: list[ConsumerAvaliacaoFotoOut] = Field(default_factory=list)
+
+
+class ConsumerPontosMovimentacaoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    loja_id: uuid.UUID
+    tipo: TipoTransacaoPontos
+    quantidade: int
+    avaliacao_id: uuid.UUID | None
+    descricao: str | None
+    criado_em: datetime
+
+
+class ConsumerPontosSaldoLojaOut(BaseModel):
+    loja_id: uuid.UUID
+    saldo: int
+
+
+class ConsumerPontosOut(BaseModel):
+    saldo_total: int
+    saldos_por_loja: list[ConsumerPontosSaldoLojaOut]
+    historico: list[ConsumerPontosMovimentacaoOut]
 
 
 class DashboardOut(BaseModel):
