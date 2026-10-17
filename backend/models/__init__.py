@@ -10,6 +10,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     JSON,
+    Integer,
     Numeric,
     SmallInteger,
     Table,
@@ -39,6 +40,11 @@ class StatusLoja(str, enum.Enum):
     pendente = "pendente"
     aprovada = "aprovada"
     rejeitada = "rejeitada"
+
+
+class TipoTransacaoPontos(str, enum.Enum):
+    credito = "credito"
+    resgate = "resgate"
 
 
 class Profile(Base):
@@ -207,6 +213,38 @@ class AvaliacaoFoto(Base):
         nullable=False,
     )
     url: Mapped[str] = mapped_column(Text, nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+class PontosTransacao(Base):
+    __tablename__ = "pontos_transacoes"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    usuario_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("auth.users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    loja_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("lojas.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    tipo: Mapped[TipoTransacaoPontos] = mapped_column(
+        Enum(
+            TipoTransacaoPontos,
+            name="tipo_transacao_pontos",
+            schema="public",
+        ),
+        nullable=False,
+    )
+    quantidade: Mapped[int] = mapped_column(Integer, nullable=False)
+    avaliacao_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("avaliacoes.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    descricao: Mapped[str | None] = mapped_column(Text)
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
