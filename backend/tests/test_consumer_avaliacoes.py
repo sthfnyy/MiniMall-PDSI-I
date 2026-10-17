@@ -110,13 +110,17 @@ class ConsumerAvaliacoesTestCase(unittest.TestCase):
     def test_get_retorna_somente_avaliacoes_do_consumidor(self):
         profile = criar_profile()
         avaliacao = criar_avaliacao(profile.id)
-        session = FakeSession([FakeResult(scalars=[avaliacao])])
+        session = FakeSession([
+            FakeResult(scalars=[avaliacao]),
+            FakeResult(scalars=[]),
+        ])
         self.autenticar(profile, session)
 
         response = self.client.get("/consumidor/avaliacoes")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["id"], str(avaliacao.id))
+        self.assertEqual(response.json()[0]["fotos"], [])
         self.assertNotIn("usuario_id", response.json()[0])
         statement = session.statements[0]
         self.assertIn(profile.id, statement.compile().params.values())
