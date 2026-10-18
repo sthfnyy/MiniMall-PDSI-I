@@ -890,6 +890,33 @@ footer > .text-button {
 .review-photo {
   border-radius: 4px;
 }
+.review-photo-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.review-photo-item {
+  display: grid;
+  gap: 6px;
+}
+.review-photo-item .review-photo {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+.review-photo-controls {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  margin-top: 16px;
+}
+.review-photo-controls input[type="file"] {
+  max-width: 100%;
+}
+.review-photo-controls .error {
+  margin: 0;
+}
 .balance-card {
   border: 0;
   border-right: 1px solid var(--border);

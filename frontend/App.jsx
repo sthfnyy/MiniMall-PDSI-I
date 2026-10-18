@@ -34,7 +34,11 @@ import { Modal, Empty } from "./components/ui";
 
 import { money, price } from "./services/catalog";
 import { loadData, saveData } from "./services/storage";
-import { publishReview } from "./services/reviews";
+import {
+  createConsumerReview,
+  isBackendStoreId,
+  publishReview,
+} from "./services/reviews.js";
 import {
   getCurrentSession,
   getAuthenticatedProfile,
@@ -569,7 +573,7 @@ export default function App() {
             onProduct={onProduct}
             onStore={onStore}
             go={go}
-            user={user}
+            user={currentUser}
             onReview={(selectedStore) =>
               go(`consumidor/avaliar/${selectedStore.id}`)
             }
@@ -740,6 +744,7 @@ export default function App() {
               user={currentUser}
               data={data}
               go={go}
+              useRealApi={Boolean(authSession?.access_token)}
             />
           ) : (
             <Empty
@@ -762,7 +767,24 @@ export default function App() {
             <ReviewForm
               store={reviewStore}
               onCancel={() => go(`loja/${reviewStore.id}`)}
-              onPublish={(values) => {
+              onPublish={async (values) => {
+                if (authSession?.access_token) {
+                  if (!isBackendStoreId(reviewStore.id)) {
+                    throw new Error(
+                      "Esta loja ainda não está disponível para avaliações na API.",
+                    );
+                  }
+
+                  await createConsumerReview({
+                    loja_id: reviewStore.id,
+                    nota: Number(values.rating),
+                    comentario: values.comment.trim(),
+                  });
+                  setToast("Avaliação publicada com sucesso.");
+                  go("consumidor/avaliacoes");
+                  return;
+                }
+
                 const nextData = structuredClone(data);
                 publishReview(nextData, {
                   ...values,
