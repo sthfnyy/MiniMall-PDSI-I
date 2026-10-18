@@ -866,8 +866,9 @@ test("upload de foto usa POST com FormData e sem Content-Type manual", async () 
   assert.equal(calls[0][0], "/consumidor/avaliacoes/review-1/fotos");
   assert.equal(calls[0][1].method, "POST");
   assert.ok(calls[0][1].body instanceof FormData);
-  assert.equal(calls[0][1].body.get("file").type, file.type);
-  assert.equal(calls[0][1].body.get("file").size, file.size);
+  assert.equal(calls[0][1].body.get("arquivo").type, file.type);
+  assert.equal(calls[0][1].body.get("arquivo").size, file.size);
+  assert.equal(calls[0][1].body.has("file"), false);
   assert.equal(calls[0][1].headers, undefined);
 });
 
