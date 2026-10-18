@@ -10,6 +10,12 @@ import {
 } from "../services/admin.js";
 import { whatsappLink } from "../services/contact.js";
 import {
+  buildDemoConsumerPoints,
+  getConsumerPoints,
+  getConsumerPointsViewData,
+  loadConsumerPoints,
+} from "../services/points.js";
+import {
   appendReviewPhoto,
   createConsumerReview,
   deleteConsumerReview,
@@ -998,6 +1004,114 @@ test("todas as fotos retornadas em fotos[] ficam disponíveis para renderizaçã
     "photo-2",
     "photo-3",
   ]);
+});
+
+test("getConsumerPoints consulta somente GET /consumidor/pontos", async () => {
+  const calls = [];
+  const response = {
+    saldo_total: 26,
+    saldos_por_loja: [{ loja_id: "store-uuid", saldo: 6 }],
+    historico: [],
+  };
+  const request = async (...args) => {
+    calls.push(args);
+    return response;
+  };
+
+  assert.equal(await getConsumerPoints(request), response);
+  assert.deepEqual(calls, [["/consumidor/pontos"]]);
+});
+
+test("dados reais de pontos são preservados sem recálculo no frontend", () => {
+  const response = {
+    saldo_total: 26,
+    saldos_por_loja: [{ loja_id: "store-uuid", saldo: 6 }],
+    historico: [
+      {
+        id: "credit-1",
+        loja_id: "store-uuid",
+        tipo: "credito",
+        quantidade: 100,
+        descricao: "Crédito",
+        criado_em: "2026-10-17T15:00:00Z",
+      },
+      {
+        id: "redeem-1",
+        loja_id: "store-uuid",
+        tipo: "resgate",
+        quantidade: 40,
+        descricao: "Resgate",
+        criado_em: "2026-10-16T15:00:00Z",
+      },
+    ],
+  };
+
+  const selected = getConsumerPointsViewData({
+    useRealApi: true,
+    realPoints: response,
+    data: { pontos_transacoes: [] },
+    userId: "consumer",
+  });
+
+  assert.equal(selected, response);
+  assert.equal(selected.saldo_total, 26);
+  assert.deepEqual(selected.saldos_por_loja, response.saldos_por_loja);
+  assert.deepEqual(selected.historico, response.historico);
+  assert.deepEqual(selected.historico.map((item) => item.tipo), [
+    "credito",
+    "resgate",
+  ]);
+});
+
+test("resposta real vazia mantém saldo zero e listas vazias", () => {
+  const response = {
+    saldo_total: 0,
+    saldos_por_loja: [],
+    historico: [],
+  };
+
+  assert.equal(
+    getConsumerPointsViewData({ useRealApi: true, realPoints: response }),
+    response,
+  );
+});
+
+test("erro da API de pontos é propagado e não convertido em saldo zero", async () => {
+  await assert.rejects(
+    getConsumerPoints(async () => {
+      throw new Error("Falha ao consultar pontos");
+    }),
+    /Falha ao consultar pontos/,
+  );
+});
+
+test("modo demo mantém cálculo local de saldo, lojas e histórico", () => {
+  const data = fresh();
+  const result = buildDemoConsumerPoints(data, "consumer");
+
+  assert.equal(result.saldo_total, 150);
+  assert.deepEqual(result.saldos_por_loja, [
+    { loja_id: "1", saldo: 100 },
+    { loja_id: "2", saldo: 50 },
+  ]);
+  assert.equal(result.historico.length, 4);
+  assert.deepEqual(result.historico.map((item) => item.id), [
+    "pt-4",
+    "pt-3",
+    "pt-2",
+    "pt-1",
+  ]);
+});
+
+test("modo demo não realiza chamada à API de pontos", async () => {
+  let requested = false;
+  const result = await loadConsumerPoints(false, async () => {
+    requested = true;
+    return {};
+  });
+
+  assert.equal(result, null);
+  assert.equal(requested, false);
 });
 
 

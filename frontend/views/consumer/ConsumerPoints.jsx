@@ -1,21 +1,52 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Coins, Store } from "lucide-react";
+import {
+  getConsumerPointsViewData,
+  loadConsumerPoints,
+} from "../../services/points.js";
 
-export default function ConsumerPoints({ user, data, go }) {
-  const allTransactions = data?.pontos_transacoes || [];
-  const userTransactions = allTransactions.filter(
-    (t) => String(t.usuario_id) === String(user?.id),
-  );
+export default function ConsumerPoints({ user, data, go, useRealApi = false }) {
+  const [realPoints, setRealPoints] = useState(null);
+  const [loading, setLoading] = useState(useRealApi);
+  const [error, setError] = useState("");
 
-  // Ordenar movimentações da mais recente para a mais antiga
-  const sortedTransactions = [...userTransactions].sort(
-    (a, b) => new Date(b.criado_em) - new Date(a.criado_em),
-  );
+  useEffect(() => {
+    let active = true;
 
-  // SEÇÃO 1 — SALDO TOTAL: credito = soma, resgate = subtração
-  const totalPoints = userTransactions.reduce((acc, t) => {
-    return t.tipo === "credito" ? acc + t.quantidade : acc - t.quantidade;
-  }, 0);
+    if (!useRealApi) {
+      setLoading(false);
+      setError("");
+      return () => {
+        active = false;
+      };
+    }
+
+    setLoading(true);
+    setError("");
+    loadConsumerPoints(true)
+      .then((result) => {
+        if (active) setRealPoints(result);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [useRealApi]);
+
+  const pointsData = getConsumerPointsViewData({
+    useRealApi,
+    realPoints,
+    data,
+    userId: user?.id,
+  });
+  const totalPoints = pointsData?.saldo_total ?? 0;
+  const sortedTransactions = pointsData?.historico || [];
 
   // Mapa de lojas para obter o nome correspondente
   const storesMap = (data?.stores || []).reduce((acc, s) => {
@@ -23,24 +54,11 @@ export default function ConsumerPoints({ user, data, go }) {
     return acc;
   }, {});
 
-  // SEÇÃO 2 — SALDO POR LOJA: agrupado individualmente por loja_id
-  const pointsByStoreMap = userTransactions.reduce((acc, t) => {
-    if (!acc[t.loja_id]) {
-      acc[t.loja_id] = {
-        storeId: t.loja_id,
-        storeName: storesMap[t.loja_id]?.name || `Loja #${t.loja_id}`,
-        balance: 0,
-      };
-    }
-    if (t.tipo === "credito") {
-      acc[t.loja_id].balance += t.quantidade;
-    } else if (t.tipo === "resgate") {
-      acc[t.loja_id].balance -= t.quantidade;
-    }
-    return acc;
-  }, {});
-
-  const storeBalances = Object.values(pointsByStoreMap);
+  const storeBalances = (pointsData?.saldos_por_loja || []).map((item) => ({
+    storeId: item.loja_id,
+    storeName: storesMap[item.loja_id]?.name || `Loja #${item.loja_id}`,
+    balance: item.saldo,
+  }));
 
   function formatPoints(value) {
     return Number(value).toLocaleString("pt-BR");
@@ -76,7 +94,10 @@ export default function ConsumerPoints({ user, data, go }) {
         </p>
       </div>
 
-      {userTransactions.length > 0 ? (
+      {loading && <p>Carregando seus pontos...</p>}
+      {error && <p className="error" role="alert">{error}</p>}
+
+      {!loading && !error && sortedTransactions.length > 0 ? (
         <>
           {/* SEÇÃO 1 — SALDO TOTAL */}
            <div className="consumer-points-summary">
@@ -235,7 +256,7 @@ export default function ConsumerPoints({ user, data, go }) {
             </div>
           </section>
         </>
-      ) : (
+      ) : !loading && !error ? (
         /* ESTADO VAZIO */
         <div className="empty">
           <Coins size={36} />
@@ -250,7 +271,7 @@ export default function ConsumerPoints({ user, data, go }) {
             </button>
           )}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }

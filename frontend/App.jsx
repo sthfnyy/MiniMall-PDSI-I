@@ -721,6 +721,7 @@ export default function App() {
               user={currentUser}
               data={data}
               go={go}
+              useRealApi={Boolean(authSession?.access_token)}
             />
           ) : (
             <Empty
