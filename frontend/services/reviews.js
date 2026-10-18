@@ -1,3 +1,50 @@
+import { apiRequest } from "./api.js";
+
+export async function listConsumerReviews(request = apiRequest) {
+  return request("/consumidor/avaliacoes");
+}
+
+export async function createConsumerReview(values, request = apiRequest) {
+  return request("/consumidor/avaliacoes", {
+    method: "POST",
+    body: JSON.stringify({
+      loja_id: values.loja_id,
+      nota: values.nota,
+      comentario: values.comentario,
+    }),
+  });
+}
+
+export async function updateConsumerReview(id, values, request = apiRequest) {
+  const payload = {};
+  if (values.nota !== undefined) payload.nota = values.nota;
+  if (values.comentario !== undefined) payload.comentario = values.comentario;
+
+  return request(`/consumidor/avaliacoes/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteConsumerReview(id, request = apiRequest) {
+  return request(`/consumidor/avaliacoes/${id}`, { method: "DELETE" });
+}
+
+export function isBackendStoreId(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || ""),
+  );
+}
+
+export function getReviewPhotos(review) {
+  if (Array.isArray(review?.fotos) && review.fotos.length > 0) {
+    return review.fotos.filter((photo) => photo?.url);
+  }
+
+  const legacyUrl = review?.foto_url || review?.photo;
+  return legacyUrl ? [{ id: `legacy-${review.id}`, url: legacyUrl }] : [];
+}
+
 export function getReviewUserId(review) {
   return review?.user ?? review?.usuario_id;
 }

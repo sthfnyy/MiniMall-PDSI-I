@@ -10,9 +10,15 @@ import {
 } from "../services/admin.js";
 import { whatsappLink } from "../services/contact.js";
 import {
+  createConsumerReview,
+  deleteConsumerReview,
   getStoreReviews,
+  getReviewPhotos,
   getUserReviews,
+  isBackendStoreId,
+  listConsumerReviews,
   publishReview,
+  updateConsumerReview,
 } from "../services/reviews.js";
 import {
   getMerchantStore,
@@ -720,6 +726,112 @@ test("updateStoreProduct permite ativar e desativar promoção de preço", () =>
     sale: 0,
   });
   assert.equal(product.sale, 0);
+});
+
+test("API de avaliações lista somente pelo endpoint autenticado do consumidor", async () => {
+  const calls = [];
+  const reviews = [{ id: "review-1", nota: 5 }];
+  const request = async (...args) => {
+    calls.push(args);
+    return reviews;
+  };
+
+  assert.deepEqual(await listConsumerReviews(request), reviews);
+  assert.deepEqual(calls, [["/consumidor/avaliacoes"]]);
+});
+
+test("API cria avaliação sem enviar usuário ou pontuação no payload", async () => {
+  const calls = [];
+  const request = async (...args) => {
+    calls.push(args);
+    return { id: "review-1" };
+  };
+
+  await createConsumerReview(
+    {
+      loja_id: "55c27b92-8108-4fb2-9ad0-28fc2441548c",
+      nota: 5,
+      comentario: "Ótimo atendimento",
+      usuario_id: "outro-usuario",
+      quantidade: 999,
+      pontos: 999,
+    },
+    request,
+  );
+
+  assert.equal(calls[0][0], "/consumidor/avaliacoes");
+  assert.equal(calls[0][1].method, "POST");
+  assert.deepEqual(JSON.parse(calls[0][1].body), {
+    loja_id: "55c27b92-8108-4fb2-9ad0-28fc2441548c",
+    nota: 5,
+    comentario: "Ótimo atendimento",
+  });
+});
+
+test("API atualiza somente nota e comentário e remove pelo id", async () => {
+  const calls = [];
+  const request = async (...args) => {
+    calls.push(args);
+    return args[1]?.method === "DELETE" ? null : { id: "review-1", nota: 4 };
+  };
+
+  await updateConsumerReview(
+    "review-1",
+    { nota: 4, comentario: "Atualizada", usuario_id: "ignorado" },
+    request,
+  );
+  await deleteConsumerReview("review-1", request);
+
+  assert.equal(calls[0][0], "/consumidor/avaliacoes/review-1");
+  assert.equal(calls[0][1].method, "PATCH");
+  assert.deepEqual(JSON.parse(calls[0][1].body), {
+    nota: 4,
+    comentario: "Atualizada",
+  });
+  assert.deepEqual(calls[1], [
+    "/consumidor/avaliacoes/review-1",
+    { method: "DELETE" },
+  ]);
+});
+
+test("erros da API de avaliações são propagados para tratamento da tela", async () => {
+  const request = async () => {
+    throw new Error("Falha ao carregar avaliações");
+  };
+
+  await assert.rejects(
+    listConsumerReviews(request),
+    /Falha ao carregar avaliações/,
+  );
+});
+
+test("fotos usa fotos[] da API e mantém fallback dos mocks legados", () => {
+  assert.deepEqual(
+    getReviewPhotos({
+      id: "real",
+      foto_url: "https://legacy.invalid/foto.jpg",
+      fotos: [
+        { id: "photo-1", url: "https://cdn.invalid/1.jpg" },
+        { id: "sem-url" },
+      ],
+    }),
+    [{ id: "photo-1", url: "https://cdn.invalid/1.jpg" }],
+  );
+  assert.deepEqual(
+    getReviewPhotos({ id: 101, photo: "/images/review.jpg" }),
+    [{ id: "legacy-101", url: "/images/review.jpg" }],
+  );
+  assert.deepEqual(getReviewPhotos({ id: "empty", fotos: [] }), []);
+});
+
+test("somente UUID de loja é compatível com a API real de avaliações", () => {
+  assert.equal(
+    isBackendStoreId("55c27b92-8108-4fb2-9ad0-28fc2441548c"),
+    true,
+  );
+  assert.equal(isBackendStoreId(1), false);
+  assert.equal(isBackendStoreId("loja-1"), false);
+  assert.equal(isBackendStoreId(null), false);
 });
 
 
