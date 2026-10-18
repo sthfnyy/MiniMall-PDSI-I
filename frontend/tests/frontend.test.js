@@ -10,15 +10,21 @@ import {
 } from "../services/admin.js";
 import { whatsappLink } from "../services/contact.js";
 import {
+  appendReviewPhoto,
   createConsumerReview,
   deleteConsumerReview,
+  deleteConsumerReviewPhoto,
   getStoreReviews,
   getReviewPhotos,
   getUserReviews,
   isBackendStoreId,
   listConsumerReviews,
+  MAX_REVIEW_PHOTO_SIZE,
+  removeReviewPhoto,
   publishReview,
   updateConsumerReview,
+  uploadConsumerReviewPhoto,
+  validateConsumerReviewPhoto,
 } from "../services/reviews.js";
 import {
   getMerchantStore,
@@ -832,6 +838,166 @@ test("somente UUID de loja é compatível com a API real de avaliações", () =>
   assert.equal(isBackendStoreId(1), false);
   assert.equal(isBackendStoreId("loja-1"), false);
   assert.equal(isBackendStoreId(null), false);
+});
+
+test("upload de foto usa POST com FormData e sem Content-Type manual", async () => {
+  const calls = [];
+  const file = new Blob(["jpeg"], { type: "image/jpeg" });
+  const returnedPhoto = { id: "photo-1", url: "https://cdn.invalid/1.jpg" };
+  const request = async (...args) => {
+    calls.push(args);
+    return returnedPhoto;
+  };
+
+  assert.deepEqual(
+    await uploadConsumerReviewPhoto("review-1", file, request),
+    returnedPhoto,
+  );
+  assert.equal(calls[0][0], "/consumidor/avaliacoes/review-1/fotos");
+  assert.equal(calls[0][1].method, "POST");
+  assert.ok(calls[0][1].body instanceof FormData);
+  assert.equal(calls[0][1].body.get("file").type, file.type);
+  assert.equal(calls[0][1].body.get("file").size, file.size);
+  assert.equal(calls[0][1].headers, undefined);
+});
+
+test("remoção de foto usa o DELETE da avaliação e foto corretas", async () => {
+  const calls = [];
+  const request = async (...args) => {
+    calls.push(args);
+    return null;
+  };
+
+  await deleteConsumerReviewPhoto("review-1", "photo-1", request);
+  assert.deepEqual(calls, [[
+    "/consumidor/avaliacoes/review-1/fotos/photo-1",
+    { method: "DELETE" },
+  ]]);
+});
+
+test("foto maior que 5 MB é rejeitada antes da API", async () => {
+  let requested = false;
+  const file = { type: "image/jpeg", size: MAX_REVIEW_PHOTO_SIZE + 1 };
+
+  await assert.rejects(
+    uploadConsumerReviewPhoto("review-1", file, async () => {
+      requested = true;
+    }),
+    /máximo 5 MB/,
+  );
+  assert.equal(requested, false);
+});
+
+test("MIME inválido é rejeitado antes da API", async () => {
+  let requested = false;
+  const file = { type: "application/pdf", size: 100 };
+
+  await assert.rejects(
+    uploadConsumerReviewPhoto("review-1", file, async () => {
+      requested = true;
+    }),
+    /JPEG, PNG ou WebP/,
+  );
+  assert.equal(requested, false);
+});
+
+for (const mime of ["image/jpeg", "image/png", "image/webp"]) {
+  test(`${mime} válido pode ser enviado`, async () => {
+    let requested = false;
+    const file = new Blob(["image"], { type: mime });
+
+    await uploadConsumerReviewPhoto("review-1", file, async () => {
+      requested = true;
+      return { id: mime, url: `https://cdn.invalid/${mime}` };
+    });
+    assert.equal(requested, true);
+  });
+}
+
+test("limite de 3 fotos é validado antes do upload", () => {
+  const file = { type: "image/png", size: 100 };
+  assert.throws(
+    () => validateConsumerReviewPhoto(file, 3),
+    /no máximo 3 fotos/,
+  );
+});
+
+test("foto só aparece no estado depois que o upload tem sucesso", async () => {
+  const initial = [{ id: "review-1", fotos: [] }];
+  const photo = { id: "photo-1", url: "https://cdn.invalid/1.jpg" };
+  const saved = await uploadConsumerReviewPhoto(
+    "review-1",
+    new Blob(["image"], { type: "image/png" }),
+    async () => photo,
+  );
+  const updated = appendReviewPhoto(initial, "review-1", saved);
+
+  assert.deepEqual(initial[0].fotos, []);
+  assert.deepEqual(updated[0].fotos, [photo]);
+});
+
+test("erro no upload não adiciona foto ao estado", async () => {
+  const initial = [{ id: "review-1", fotos: [] }];
+
+  await assert.rejects(
+    uploadConsumerReviewPhoto(
+      "review-1",
+      new Blob(["image"], { type: "image/png" }),
+      async () => {
+        throw new Error("Falha de rede");
+      },
+    ),
+    /Falha de rede/,
+  );
+  assert.deepEqual(initial[0].fotos, []);
+});
+
+test("remoção altera o estado apenas depois do sucesso da API", async () => {
+  const initial = [{
+    id: "review-1",
+    fotos: [
+      { id: "photo-1", url: "https://cdn.invalid/1.jpg" },
+      { id: "photo-2", url: "https://cdn.invalid/2.jpg" },
+    ],
+  }];
+
+  await deleteConsumerReviewPhoto("review-1", "photo-1", async () => null);
+  const updated = removeReviewPhoto(initial, "review-1", "photo-1");
+  assert.deepEqual(initial[0].fotos.map((photo) => photo.id), ["photo-1", "photo-2"]);
+  assert.deepEqual(updated[0].fotos.map((photo) => photo.id), ["photo-2"]);
+});
+
+test("erro na remoção mantém todas as fotos", async () => {
+  const initial = [{
+    id: "review-1",
+    fotos: [{ id: "photo-1", url: "https://cdn.invalid/1.jpg" }],
+  }];
+
+  await assert.rejects(
+    deleteConsumerReviewPhoto("review-1", "photo-1", async () => {
+      throw new Error("Falha de rede");
+    }),
+    /Falha de rede/,
+  );
+  assert.equal(initial[0].fotos.length, 1);
+});
+
+test("todas as fotos retornadas em fotos[] ficam disponíveis para renderização", () => {
+  const photos = getReviewPhotos({
+    id: "review-1",
+    fotos: [
+      { id: "photo-1", url: "https://cdn.invalid/1.jpg" },
+      { id: "photo-2", url: "https://cdn.invalid/2.jpg" },
+      { id: "photo-3", url: "https://cdn.invalid/3.webp" },
+    ],
+  });
+
+  assert.equal(photos.length, 3);
+  assert.deepEqual(photos.map((photo) => photo.id), [
+    "photo-1",
+    "photo-2",
+    "photo-3",
+  ]);
 });
 
 

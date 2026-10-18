@@ -1,5 +1,98 @@
 import { apiRequest } from "./api.js";
 
+export const MAX_REVIEW_PHOTOS = 3;
+export const MAX_REVIEW_PHOTO_SIZE = 5 * 1024 * 1024;
+export const REVIEW_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+
+export function validateConsumerReviewPhoto(file, currentPhotoCount = 0) {
+  if (!file) {
+    throw new Error("Selecione uma imagem para enviar.");
+  }
+
+  if (currentPhotoCount >= MAX_REVIEW_PHOTOS) {
+    throw new Error("Cada avaliação pode ter no máximo 3 fotos.");
+  }
+
+  if (!REVIEW_PHOTO_TYPES.includes(file.type)) {
+    throw new Error("Envie uma imagem JPEG, PNG ou WebP.");
+  }
+
+  if (file.size > MAX_REVIEW_PHOTO_SIZE) {
+    throw new Error("A imagem deve ter no máximo 5 MB.");
+  }
+
+  return file;
+}
+
+function friendlyPhotoError(error) {
+  const message = error?.message || "Não foi possível processar a foto.";
+
+  if (message.includes("HTTP 404")) {
+    return new Error("A avaliação ou a foto não foi encontrada.");
+  }
+  if (message.includes("HTTP 409")) {
+    return new Error("Esta avaliação já possui o limite de 3 fotos.");
+  }
+  if (message.includes("HTTP 422")) {
+    return new Error("O arquivo enviado não é uma imagem válida.");
+  }
+
+  return error instanceof Error ? error : new Error(message);
+}
+
+export async function uploadConsumerReviewPhoto(
+  assessmentId,
+  file,
+  request = apiRequest,
+) {
+  validateConsumerReviewPhoto(file);
+  const body = new FormData();
+  body.append("file", file);
+
+  try {
+    return await request(`/consumidor/avaliacoes/${assessmentId}/fotos`, {
+      method: "POST",
+      body,
+    });
+  } catch (error) {
+    throw friendlyPhotoError(error);
+  }
+}
+
+export async function deleteConsumerReviewPhoto(
+  assessmentId,
+  photoId,
+  request = apiRequest,
+) {
+  try {
+    return await request(
+      `/consumidor/avaliacoes/${assessmentId}/fotos/${photoId}`,
+      { method: "DELETE" },
+    );
+  } catch (error) {
+    throw friendlyPhotoError(error);
+  }
+}
+
+export function appendReviewPhoto(reviews, reviewId, photo) {
+  return reviews.map((review) =>
+    review.id === reviewId
+      ? { ...review, fotos: [...(review.fotos || []), photo] }
+      : review,
+  );
+}
+
+export function removeReviewPhoto(reviews, reviewId, photoId) {
+  return reviews.map((review) =>
+    review.id === reviewId
+      ? {
+          ...review,
+          fotos: (review.fotos || []).filter((photo) => photo.id !== photoId),
+        }
+      : review,
+  );
+}
+
 export async function listConsumerReviews(request = apiRequest) {
   return request("/consumidor/avaliacoes");
 }

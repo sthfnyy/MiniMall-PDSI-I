@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Star, Store } from "lucide-react";
 import {
+  appendReviewPhoto,
   deleteConsumerReview,
+  deleteConsumerReviewPhoto,
   getReviewPhotos,
   getReviewStoreId,
   getUserReviews,
   listConsumerReviews,
+  MAX_REVIEW_PHOTOS,
+  removeReviewPhoto,
   updateConsumerReview,
+  uploadConsumerReviewPhoto,
+  validateConsumerReviewPhoto,
 } from "../../services/reviews.js";
 
 export default function ConsumerReviews({ user, data, go, useRealApi = false }) {
@@ -18,6 +24,9 @@ export default function ConsumerReviews({ user, data, go, useRealApi = false }) 
   const [editRating, setEditRating] = useState(0);
   const [editComment, setEditComment] = useState("");
   const [processingId, setProcessingId] = useState(null);
+  const [selectedPhotos, setSelectedPhotos] = useState({});
+  const [photoErrors, setPhotoErrors] = useState({});
+  const [photoProcessing, setPhotoProcessing] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -121,6 +130,77 @@ export default function ConsumerReviews({ user, data, go, useRealApi = false }) 
       setError(deleteError.message);
     } finally {
       setProcessingId(null);
+    }
+  }
+
+  function selectPhoto(review, file) {
+    try {
+      validateConsumerReviewPhoto(file, getReviewPhotos(review).length);
+      setSelectedPhotos((current) => ({ ...current, [review.id]: file }));
+      setPhotoErrors((current) => ({ ...current, [review.id]: "" }));
+    } catch (validationError) {
+      setSelectedPhotos((current) => ({ ...current, [review.id]: null }));
+      setPhotoErrors((current) => ({
+        ...current,
+        [review.id]: validationError.message,
+      }));
+    }
+  }
+
+  async function uploadPhoto(review) {
+    if (photoProcessing) return;
+    const file = selectedPhotos[review.id];
+
+    try {
+      validateConsumerReviewPhoto(file, getReviewPhotos(review).length);
+    } catch (validationError) {
+      setPhotoErrors((current) => ({
+        ...current,
+        [review.id]: validationError.message,
+      }));
+      return;
+    }
+
+    setPhotoProcessing(`upload-${review.id}`);
+    setPhotoErrors((current) => ({ ...current, [review.id]: "" }));
+
+    try {
+      const photo = await uploadConsumerReviewPhoto(review.id, file);
+      setRealReviews((current) => appendReviewPhoto(current, review.id, photo));
+      setSelectedPhotos((current) => ({ ...current, [review.id]: null }));
+    } catch (uploadError) {
+      setPhotoErrors((current) => ({
+        ...current,
+        [review.id]: uploadError.message,
+      }));
+    } finally {
+      setPhotoProcessing(null);
+    }
+  }
+
+  async function removePhoto(review, photo) {
+    if (
+      photoProcessing ||
+      !window.confirm("Remover esta foto da avaliação?")
+    ) {
+      return;
+    }
+
+    setPhotoProcessing(`delete-${photo.id}`);
+    setPhotoErrors((current) => ({ ...current, [review.id]: "" }));
+
+    try {
+      await deleteConsumerReviewPhoto(review.id, photo.id);
+      setRealReviews((current) =>
+        removeReviewPhoto(current, review.id, photo.id),
+      );
+    } catch (deleteError) {
+      setPhotoErrors((current) => ({
+        ...current,
+        [review.id]: deleteError.message,
+      }));
+    } finally {
+      setPhotoProcessing(null);
     }
   }
 
@@ -234,15 +314,76 @@ export default function ConsumerReviews({ user, data, go, useRealApi = false }) 
                 ) : (
                   <>
                     {commentText && <p>{commentText}</p>}
-                    {photos.map((photo) => (
-                      <img
-                        key={photo.id || photo.url}
-                        className="review-photo"
-                        src={photo.url}
-                        alt={`Foto da avaliação para ${storeName}`}
-                        loading="lazy"
-                      />
-                    ))}
+                    {photos.length > 0 && (
+                      <div className="review-photo-list">
+                        {photos.map((photo, index) => (
+                          <div className="review-photo-item" key={photo.id || photo.url}>
+                            <img
+                              className="review-photo"
+                              src={photo.url}
+                              alt={`Foto ${index + 1} da avaliação para ${storeName}`}
+                              loading="lazy"
+                            />
+                            {useRealApi && photo.id && !String(photo.id).startsWith("legacy-") && (
+                              <button
+                                className="text-button danger"
+                                type="button"
+                                disabled={photoProcessing === `delete-${photo.id}`}
+                                onClick={() => removePhoto(review, photo)}
+                              >
+                                {photoProcessing === `delete-${photo.id}`
+                                  ? "Removendo..."
+                                  : "Remover foto"}
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {useRealApi && (
+                      <div className="review-photo-controls">
+                        <small>
+                          {photos.length} de {MAX_REVIEW_PHOTOS} fotos
+                        </small>
+                        {photos.length < MAX_REVIEW_PHOTOS ? (
+                          <>
+                            <input
+                              key={`photo-${review.id}-${selectedPhotos[review.id]?.name || "empty"}`}
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              disabled={photoProcessing === `upload-${review.id}`}
+                              aria-label={`Selecionar foto para avaliação de ${storeName}`}
+                              onChange={(event) =>
+                                selectPhoto(review, event.target.files?.[0])
+                              }
+                            />
+                            {selectedPhotos[review.id] && (
+                              <small>{selectedPhotos[review.id].name}</small>
+                            )}
+                            <button
+                              className="outline"
+                              type="button"
+                              disabled={
+                                !selectedPhotos[review.id] ||
+                                photoProcessing === `upload-${review.id}`
+                              }
+                              onClick={() => uploadPhoto(review)}
+                            >
+                              {photoProcessing === `upload-${review.id}`
+                                ? "Enviando..."
+                                : "Enviar foto"}
+                            </button>
+                          </>
+                        ) : (
+                          <small>Limite de fotos atingido.</small>
+                        )}
+                        {photoErrors[review.id] && (
+                          <p className="error" role="alert">
+                            {photoErrors[review.id]}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {useRealApi && (
                       <div className="review-form-actions">
                         <button
