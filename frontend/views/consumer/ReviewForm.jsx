@@ -6,15 +6,20 @@ export default function ReviewForm({ store, onPublish, onCancel }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    if (submitting) return;
     setError("");
+    setSubmitting(true);
 
     try {
-      onPublish({ rating, comment });
+      await onPublish({ rating, comment });
     } catch (publicationError) {
       setError(publicationError.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -69,11 +74,11 @@ export default function ReviewForm({ store, onPublish, onCancel }) {
         {error && <p className="error" role="alert">{error}</p>}
 
         <div className="review-form-actions">
-          <button className="outline" type="button" onClick={onCancel}>
+          <button className="outline" type="button" onClick={onCancel} disabled={submitting}>
             Cancelar
           </button>
-          <button className="primary" type="submit">
-            Publicar avaliação
+          <button className="primary" type="submit" disabled={submitting}>
+            {submitting ? "Publicando..." : "Publicar avaliação"}
           </button>
         </div>
       </form>

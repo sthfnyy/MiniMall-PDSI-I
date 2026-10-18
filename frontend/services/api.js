@@ -1,7 +1,7 @@
 
-import { getAccessToken } from "./auth";
+import { getAccessToken } from "./auth.js";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env?.VITE_API_URL || "";
 
 export async function apiRequest(endpoint, options = {}) {
   const token = await getAccessToken();
