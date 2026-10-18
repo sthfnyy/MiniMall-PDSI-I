@@ -10,6 +10,10 @@ import {
 } from "../services/admin.js";
 import { whatsappLink } from "../services/contact.js";
 import {
+  saveConsumerProfile,
+  updateConsumerProfile,
+} from "../services/profile.js";
+import {
   buildDemoConsumerPoints,
   getConsumerPoints,
   getConsumerPointsViewData,
@@ -1112,6 +1116,105 @@ test("modo demo não realiza chamada à API de pontos", async () => {
 
   assert.equal(result, null);
   assert.equal(requested, false);
+});
+
+test("atualização real do perfil usa PATCH /consumidor/perfil", async () => {
+  const calls = [];
+  const response = {
+    id: "consumer-id",
+    role: "consumidor",
+    nome_completo: "Nome Atualizado",
+  };
+  const request = async (...args) => {
+    calls.push(args);
+    return response;
+  };
+
+  assert.equal(
+    await updateConsumerProfile({ nome_completo: "Nome Atualizado" }, request),
+    response,
+  );
+  assert.equal(calls[0][0], "/consumidor/perfil");
+  assert.equal(calls[0][1].method, "PATCH");
+});
+
+test("atualização real envia somente nome_completo e nunca usuario_id", async () => {
+  let payload;
+  await updateConsumerProfile(
+    {
+      nome_completo: "Nome Permitido",
+      email: "nao-enviar@example.com",
+      usuario_id: "nao-enviar",
+      role: "admin",
+    },
+    async (_endpoint, options) => {
+      payload = JSON.parse(options.body);
+      return { nome_completo: "Nome Permitido" };
+    },
+  );
+
+  assert.deepEqual(payload, { nome_completo: "Nome Permitido" });
+  assert.equal("usuario_id" in payload, false);
+});
+
+test("sucesso da API atualiza o usuário com a resposta do backend", async () => {
+  const user = {
+    id: "consumer-id",
+    name: "Nome Enviado",
+    email: "consumer@example.com",
+    role: "consumidor",
+  };
+  const backendProfile = {
+    id: "consumer-id",
+    role: "consumidor",
+    nome_completo: "Nome Normalizado pelo Backend",
+  };
+
+  const result = await saveConsumerProfile({
+    useRealApi: true,
+    user,
+    request: async () => backendProfile,
+  });
+
+  assert.equal(result.backendProfile, backendProfile);
+  assert.equal(result.user.name, "Nome Normalizado pelo Backend");
+  assert.equal(result.user.email, user.email);
+});
+
+test("erro da API de perfil é propagado sem produzir sucesso local", async () => {
+  await assert.rejects(
+    saveConsumerProfile({
+      useRealApi: true,
+      user: { name: "Novo nome" },
+      request: async () => {
+        throw new Error("Perfil rejeitado pela API");
+      },
+    }),
+    /Perfil rejeitado pela API/,
+  );
+});
+
+test("modo demo preserva atualização local sem chamar a API de perfil", async () => {
+  let requested = false;
+  const user = {
+    id: "consumer",
+    name: "Nome Demo Atualizado",
+    email: "consumer@example.com",
+    role: "consumidor",
+  };
+
+  const result = await saveConsumerProfile({
+    useRealApi: false,
+    user,
+    request: async () => {
+      requested = true;
+      return {};
+    },
+  });
+
+  assert.equal(requested, false);
+  assert.equal(result.user, user);
+  assert.equal(result.backendProfile, null);
 });
 
 

@@ -34,6 +34,7 @@ import { Modal, Empty } from "./components/ui";
 
 import { money, price } from "./services/catalog";
 import { loadData, saveData } from "./services/storage";
+import { saveConsumerProfile } from "./services/profile.js";
 import {
   createConsumerReview,
   isBackendStoreId,
@@ -651,24 +652,37 @@ export default function App() {
                 go("consumidor/avaliacoes")
               }
               onLogout={handleLogout}
-              onUpdate={(updatedUser) => {
-                setUser(updatedUser);
+              useRealApi={Boolean(authSession?.access_token)}
+              onUpdate={async (updatedUser) => {
+                const result = await saveConsumerProfile({
+                  useRealApi: Boolean(authSession?.access_token),
+                  user: updatedUser,
+                });
+
+                if (result.backendProfile) {
+                  setBackendProfile(result.backendProfile);
+                  setToast("Perfil atualizado.");
+                  return result.user;
+                }
+
+                setUser(result.user);
 
                 update((d) => {
                   const index = d.users.findIndex(
-                    (u) => u.id === updatedUser.id,
+                    (u) => u.id === result.user.id,
                   );
 
                   if (index !== -1) {
-                    d.users[index] = updatedUser;
+                    d.users[index] = result.user;
                   } else {
-                    d.users.push(updatedUser);
+                    d.users.push(result.user);
                   }
 
                   return d;
                 });
 
                 setToast("Perfil atualizado.");
+                return result.user;
               }}
             />
           ) : (
