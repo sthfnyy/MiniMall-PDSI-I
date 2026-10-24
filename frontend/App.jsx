@@ -270,6 +270,10 @@ export default function App() {
     go(`loja/${id}`);
 
   const isFavorite = (productId) => {
+    if (authSession?.access_token) {
+      return false;
+    }
+
     if (!currentUser || currentUser.role !== "consumidor") {
       return false;
     }
@@ -296,6 +300,13 @@ export default function App() {
       );
 
       go("login");
+      return;
+    }
+
+    if (authSession?.access_token) {
+      setToast(
+        "Favoritos reais estarão disponíveis quando o catálogo usar produtos da API.",
+      );
       return;
     }
 
@@ -712,6 +723,7 @@ export default function App() {
               onToggleFavorite={toggleFavorite}
               isFavorite={isFavorite}
               go={go}
+              useRealApi={Boolean(authSession?.access_token)}
             />
           ) : (
             <Empty

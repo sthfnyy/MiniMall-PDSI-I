@@ -310,6 +310,33 @@ test("favoritos do consumidor inicializam e refletem produtos aprovados", () => 
   assert.equal(filteredAfterDelete[0].id, 4);
 });
 
+test("API de favoritos lista, adiciona e remove produtos reais", async () => {
+  const {
+    addConsumerFavorite,
+    deleteConsumerFavorite,
+    listConsumerFavorites,
+  } = await import("../services/favorites.js");
+  const calls = [];
+  const request = async (...args) => {
+    calls.push(args);
+    return args[1]?.method === "DELETE" ? null : [];
+  };
+  const productId = "product-1";
+
+  await listConsumerFavorites(request);
+  await addConsumerFavorite(productId, request);
+  await deleteConsumerFavorite(productId, request);
+
+  assert.deepEqual(calls[0], ["/consumidor/favoritos"]);
+  assert.equal(calls[1][0], "/consumidor/favoritos");
+  assert.equal(calls[1][1].method, "POST");
+  assert.deepEqual(JSON.parse(calls[1][1].body), { produto_id: productId });
+  assert.deepEqual(calls[2], [
+    `/consumidor/favoritos/${productId}`,
+    { method: "DELETE" },
+  ]);
+});
+
 test("pontos do consumidor calculam saldo total, saldo por loja e histórico", () => {
   const d = fresh();
   assert.ok(Array.isArray(d.pontos_transacoes));
