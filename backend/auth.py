@@ -117,3 +117,15 @@ async def require_consumer(
         )
 
     return profile
+
+
+async def require_lojista(
+    profile: Profile = Depends(get_current_profile),
+) -> Profile:
+    if profile.role != UserRole.lojista:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a lojistas",
+        )
+
+    return profile
