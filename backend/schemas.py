@@ -182,3 +182,136 @@ class DashboardOut(BaseModel):
     total_avaliacoes: int
     total_visualizacoes: int
     engajamento_proxy: int
+
+
+
+class LojaDetailOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    lojista_id: uuid.UUID
+    nome_loja: str
+    descricao: str | None = None
+    endereco_logradouro: str | None = None
+    endereco_numero: str | None = None
+    endereco_bairro: str | None = None
+    endereco_cidade: str
+    endereco_uf: str
+    endereco_cep: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    horario_funcionamento: dict | None = None
+    whatsapp: str
+    instagram: str | None = None
+    facebook: str | None = None
+    logo_url: str | None = None
+    status: StatusLoja
+    motivo_rejeicao: str | None = None
+    aprovado_por: uuid.UUID | None = None
+    aprovado_em: datetime | None = None
+    criado_em: datetime
+    atualizado_em: datetime
+
+
+class LojaCreateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nome_loja: str
+    descricao: str | None = None
+    endereco_logradouro: str | None = None
+    endereco_numero: str | None = None
+    endereco_bairro: str | None = None
+    endereco_cidade: str
+    endereco_uf: str = Field(min_length=2, max_length=2)
+    endereco_cep: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    horario_funcionamento: dict | None = None
+    whatsapp: str
+    instagram: str | None = None
+    facebook: str | None = None
+    logo_url: str | None = None
+
+    @field_validator("nome_loja")
+    @classmethod
+    def validar_nome_loja(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("nome_loja não pode ser vazio")
+        return v.strip()
+
+    @field_validator("whatsapp")
+    @classmethod
+    def validar_whatsapp(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("whatsapp não pode ser vazio")
+        return v.strip()
+
+    @field_validator("endereco_cidade")
+    @classmethod
+    def validar_cidade(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("endereco_cidade não pode ser vazio")
+        return v.strip()
+
+    @field_validator("endereco_uf")
+    @classmethod
+    def validar_uf(cls, v: str) -> str:
+        if not v or len(v.strip()) != 2:
+            raise ValueError("endereco_uf deve conter exatamente 2 caracteres")
+        return v.strip().upper()
+
+
+class LojaUpdateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nome_loja: str | None = None
+    descricao: str | None = None
+    endereco_logradouro: str | None = None
+    endereco_numero: str | None = None
+    endereco_bairro: str | None = None
+    endereco_cidade: str | None = None
+    endereco_uf: str | None = Field(default=None, min_length=2, max_length=2)
+    endereco_cep: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    horario_funcionamento: dict | None = None
+    whatsapp: str | None = None
+    instagram: str | None = None
+    facebook: str | None = None
+    logo_url: str | None = None
+
+    @field_validator("nome_loja")
+    @classmethod
+    def validar_nome_loja(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("nome_loja não pode ser vazio")
+            return v.strip()
+        return v
+
+    @field_validator("whatsapp")
+    @classmethod
+    def validar_whatsapp(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("whatsapp não pode ser vazio")
+            return v.strip()
+        return v
+
+    @field_validator("endereco_cidade")
+    @classmethod
+    def validar_cidade(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("endereco_cidade não pode ser vazio")
+            return v.strip()
+        return v
+
+    @field_validator("endereco_uf")
+    @classmethod
+    def validar_uf(cls, v: str | None) -> str | None:
+        if v is not None:
+            if len(v.strip()) != 2:
+                raise ValueError("endereco_uf deve conter exatamente 2 caracteres")
+            return v.strip().upper()
+        return v
