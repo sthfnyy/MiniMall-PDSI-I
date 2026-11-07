@@ -13,10 +13,18 @@ import {
   AlertTriangle,
   ExternalLink,
   RotateCcw,
+  Send,
 } from "lucide-react";
 import { Field, PageTitle } from "../../components/ui";
 import StoreIdentity from "../../components/StoreIdentity";
-import { getMerchantStore, saveMerchantStore } from "../../services/merchant";
+import {
+  getMerchantStore,
+  saveMerchantStore,
+  fetchMerchantStore,
+  createMerchantStore,
+  updateMerchantStore,
+  requestStoreApproval,
+} from "../../services/merchant";
 import MerchantNav from "./MerchantNav";
 
 export default function StoreSettings({
@@ -25,8 +33,20 @@ export default function StoreSettings({
   onSaveStore,
   go,
   notify,
+  useRealApi = false,
+  fetchStoreFn = fetchMerchantStore,
+  createStoreFn = createMerchantStore,
+  updateStoreFn = updateMerchantStore,
+  requestApprovalFn = requestStoreApproval,
 }) {
-  const currentStore = getMerchantStore(data, user);
+  const demoStore = getMerchantStore(data, user);
+  const [realStore, setRealStore] = useState(null);
+  const [isLoading, setIsLoading] = useState(useRealApi);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRequestingApproval, setIsRequestingApproval] = useState(false);
+  const [error, setError] = useState("");
+
+  const currentStore = useRealApi ? realStore : demoStore;
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -35,38 +55,73 @@ export default function StoreSettings({
   const [category, setCategory] = useState("");
   const [hours, setHours] = useState("");
   const [instagram, setInstagram] = useState("");
-  const [error, setError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
 
-  // Sync form state when currentStore or categories change
+  // Fetch store data from backend API if in real API mode
+  useEffect(() => {
+    let active = true;
+
+    if (!useRealApi) {
+      setIsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    fetchStoreFn()
+      .then((store) => {
+        if (!active) return;
+        setRealStore(store);
+        if (store && onSaveStore) {
+          onSaveStore(store);
+        }
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err.message || "Erro ao carregar os dados da loja.");
+      })
+      .finally(() => {
+        if (active) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [useRealApi, fetchStoreFn]);
+
+  // Sync form inputs when currentStore or categories change
   useEffect(() => {
     if (currentStore) {
-      setName(currentStore.name || "");
-      setDescription(currentStore.description || "");
+      setName(currentStore.nome_loja || currentStore.name || "");
+      setDescription(currentStore.descricao ?? currentStore.description ?? "");
       setWhatsapp(currentStore.whatsapp || "");
-      setAddress(currentStore.address || "");
-      setCategory(currentStore.category || data.categories?.[0] || "");
+      setAddress(currentStore.address || currentStore.endereco_logradouro || "");
+      setCategory(currentStore.category || data?.categories?.[0] || "");
       setHours(currentStore.hours || "");
       setInstagram(currentStore.instagram || "");
     } else {
-      setName(user?.name !== "Dona Flor" ? user?.name || "" : "");
+      setName(user?.name && user?.name !== "Dona Flor" ? user?.name : "");
       setDescription("");
       setWhatsapp("");
       setAddress("");
-      setCategory(data.categories?.[0] || "");
+      setCategory(data?.categories?.[0] || "");
       setHours("");
       setInstagram("");
     }
     setError("");
-  }, [currentStore, user, data.categories]);
+  }, [currentStore, user, data?.categories]);
 
   function handleReset() {
     if (currentStore) {
-      setName(currentStore.name || "");
-      setDescription(currentStore.description || "");
+      setName(currentStore.nome_loja || currentStore.name || "");
+      setDescription(currentStore.descricao ?? currentStore.description ?? "");
       setWhatsapp(currentStore.whatsapp || "");
-      setAddress(currentStore.address || "");
-      setCategory(currentStore.category || data.categories?.[0] || "");
+      setAddress(currentStore.address || currentStore.endereco_logradouro || "");
+      setCategory(currentStore.category || data?.categories?.[0] || "");
       setHours(currentStore.hours || "");
       setInstagram(currentStore.instagram || "");
     } else {
@@ -74,14 +129,14 @@ export default function StoreSettings({
       setDescription("");
       setWhatsapp("");
       setAddress("");
-      setCategory(data.categories?.[0] || "");
+      setCategory(data?.categories?.[0] || "");
       setHours("");
       setInstagram("");
     }
     setError("");
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError("");
     setIsSaving(true);
@@ -97,20 +152,60 @@ export default function StoreSettings({
         instagram,
       };
 
-      const result = saveMerchantStore(data, user, payload);
+      if (useRealApi) {
+        let saved;
+        const isNew = !currentStore;
+        if (currentStore) {
+          saved = await updateStoreFn(payload);
+        } else {
+          saved = await createStoreFn(payload);
+        }
 
-      if (onSaveStore) {
-        onSaveStore(result.store);
+        setRealStore(saved);
+        if (onSaveStore) onSaveStore(saved);
+
+        const msg = isNew
+          ? "Loja cadastrada com sucesso! Ela foi enviada para análise."
+          : "Dados da loja atualizados com sucesso!";
+        if (notify) notify(msg);
+      } else {
+        const result = saveMerchantStore(data, user, payload);
+        if (onSaveStore) {
+          onSaveStore(result.store);
+        }
+
+        const msg = result.isNew
+          ? "Loja cadastrada com sucesso! Ela foi enviada para análise."
+          : "Dados da loja atualizados com sucesso!";
+        if (notify) notify(msg);
       }
-
-      const msg = result.isNew
-        ? "Loja cadastrada com sucesso! Ela foi enviada para análise."
-        : "Dados da loja atualizados com sucesso!";
-      if (notify) notify(msg);
     } catch (err) {
       setError(err.message || "Erro ao salvar as configurações da loja.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleRequestApproval() {
+    setError("");
+    setIsRequestingApproval(true);
+
+    try {
+      if (useRealApi) {
+        const updated = await requestApprovalFn();
+        setRealStore(updated);
+        if (onSaveStore) onSaveStore(updated);
+      } else if (currentStore) {
+        currentStore.status = "pendente";
+        currentStore.motivo_rejeicao = null;
+        if (onSaveStore) onSaveStore({ ...currentStore });
+      }
+
+      if (notify) notify("Solicitação de aprovação enviada com sucesso!");
+    } catch (err) {
+      setError(err.message || "Erro ao solicitar aprovação da loja.");
+    } finally {
+      setIsRequestingApproval(false);
     }
   }
 
@@ -128,187 +223,213 @@ export default function StoreSettings({
 
       <MerchantNav current="configuracao" go={go} />
 
-      {currentStore ? (
-        <div className="merchant-status-banner">
-          <div className="merchant-identity-preview">
-            <StoreIdentity store={currentStore} />
-            <div>
-              <div className="merchant-title-row">
-                <h2>{currentStore.name}</h2>
-                {isApproved && (
-                  <span className="status-badge approved">
-                    <CheckCircle2 size={14} /> Aprovada
-                  </span>
-                )}
-                {isPending && (
-                  <span className="status-badge pending">
-                    <Clock3 size={14} /> Pendente de aprovação
-                  </span>
-                )}
-                {isRejected && (
-                  <span className="status-badge rejected">
-                    <AlertTriangle size={14} /> Rejeitada
-                  </span>
-                )}
-              </div>
-              <p className="muted merchant-status-desc">
-                {isApproved &&
-                  "Sua loja está ativa e visível para todos os consumidores na vitrine."}
-                {isPending &&
-                  "Seu cadastro está aguardando aprovação da administração para ser exibido na vitrine pública."}
-                {isRejected &&
-                  (currentStore.motivo_rejeicao
-                    ? `Motivo: ${currentStore.motivo_rejeicao}. Ajuste as informações abaixo e salve novamente.`
-                    : "Sua loja precisa de revisões. Ajuste as informações abaixo e salve para reenviar.")}
-              </p>
-            </div>
-          </div>
-
-          {isApproved && (
-            <button
-              type="button"
-              className="secondary merchant-view-btn"
-              onClick={() => go(`loja/${currentStore.id}`)}
-            >
-              <ExternalLink size={16} />
-              Ver na vitrine pública
-            </button>
-          )}
+      {isLoading ? (
+        <div className="merchant-loading-state" role="status">
+          <p>Carregando dados da loja…</p>
         </div>
       ) : (
-        <div className="merchant-empty-notice">
-          <Store size={32} />
-          <div>
-            <h3>Cadastre sua loja</h3>
-            <p>
-              Preencha os campos abaixo para registrar seu estabelecimento no
-              MiniMall e começar a divulgar seus produtos.
-            </p>
-          </div>
-        </div>
-      )}
+        <>
+          {currentStore ? (
+            <div className="merchant-status-banner">
+              <div className="merchant-identity-preview">
+                <StoreIdentity store={currentStore} />
+                <div>
+                  <div className="merchant-title-row">
+                    <h2>{currentStore.name}</h2>
+                    {isApproved && (
+                      <span className="status-badge approved">
+                        <CheckCircle2 size={14} /> Aprovada
+                      </span>
+                    )}
+                    {isPending && (
+                      <span className="status-badge pending">
+                        <Clock3 size={14} /> Pendente de aprovação
+                      </span>
+                    )}
+                    {isRejected && (
+                      <span className="status-badge rejected">
+                        <AlertTriangle size={14} /> Rejeitada
+                      </span>
+                    )}
+                  </div>
+                  <p className="muted merchant-status-desc">
+                    {isApproved &&
+                      "Sua loja está ativa e visível para todos os consumidores na vitrine."}
+                    {isPending &&
+                      "Seu cadastro está aguardando aprovação da administração para ser exibido na vitrine pública."}
+                    {isRejected &&
+                      (currentStore.motivo_rejeicao
+                        ? `Motivo: ${currentStore.motivo_rejeicao}. Ajuste as informações abaixo e solicite aprovação novamente.`
+                        : "Sua loja precisa de revisões. Ajuste as informações abaixo e solicite aprovação novamente.")}
+                  </p>
+                </div>
+              </div>
 
-      <div className="consumer-profile-card merchant-form-card">
-        <form onSubmit={handleSubmit} className="merchant-form">
-          <div className="merchant-form-section">
-            <h3>Informações Básicas</h3>
-            <p className="muted">
-              Esses dados identificam sua loja na busca e na página do estabelecimento.
-            </p>
-
-            <div className="merchant-grid">
-              <Field label="Nome da loja *">
-                <input
-                  type="text"
-                  required
-                  minLength={2}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ex: Flor de Lis Modas"
-                />
-              </Field>
-
-              <Field label="Categoria principal">
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  {(data.categories || []).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </Field>
+              <div className="merchant-status-actions">
+                {isApproved && (
+                  <button
+                    type="button"
+                    className="secondary merchant-view-btn"
+                    onClick={() => go(`loja/${currentStore.id}`)}
+                  >
+                    <ExternalLink size={16} />
+                    Ver na vitrine pública
+                  </button>
+                )}
+                {isRejected && (
+                  <button
+                    type="button"
+                    className="primary merchant-approval-btn"
+                    onClick={handleRequestApproval}
+                    disabled={isRequestingApproval || isSaving}
+                  >
+                    <Send size={16} />
+                    {isRequestingApproval
+                      ? "Solicitando…"
+                      : "Solicitar aprovação"}
+                  </button>
+                )}
+              </div>
             </div>
-
-            <Field label="Descrição da loja">
-              <textarea
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Conte brevemente sobre o seu negócio, tipos de produtos comercializados ou diferenciais..."
-              />
-            </Field>
-          </div>
-
-          <div className="merchant-form-section">
-            <h3>Contato e Localização</h3>
-            <p className="muted">
-              Canais diretos para os clientes conversarem com você e encontrarem seu endereço físico.
-            </p>
-
-            <div className="merchant-grid">
-              <Field label="WhatsApp para atendimento *">
-                <input
-                  type="tel"
-                  required
-                  value={whatsapp}
-                  onChange={(e) => setWhatsapp(e.target.value)}
-                  placeholder="(89) 99999-9999"
-                />
-              </Field>
-
-              <Field label="Instagram (opcional)">
-                <input
-                  type="text"
-                  value={instagram}
-                  onChange={(e) => setInstagram(e.target.value)}
-                  placeholder="@sualoja ou link do perfil"
-                />
-              </Field>
-            </div>
-
-            <Field label="Localização / Endereço completo *">
-              <input
-                type="text"
-                required
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Ex: Rua Coronel Francisco Santos, 120, Centro, Picos – PI"
-              />
-            </Field>
-
-            <Field label="Horário de funcionamento">
-              <input
-                type="text"
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                placeholder="Ex: Segunda a sexta, 8h às 18h · Sábado, 8h às 13h"
-              />
-            </Field>
-          </div>
-
-          {error && (
-            <div className="error-banner" role="alert">
-              <AlertTriangle size={18} />
-              <span>{error}</span>
+          ) : (
+            <div className="merchant-empty-notice">
+              <Store size={32} />
+              <div>
+                <h3>Cadastre sua loja</h3>
+                <p>
+                  Preencha os campos abaixo para registrar seu estabelecimento no
+                  MiniMall e começar a divulgar seus produtos.
+                </p>
+              </div>
             </div>
           )}
 
-          <div className="consumer-form-actions merchant-actions">
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleReset}
-              disabled={isSaving}
-            >
-              <RotateCcw size={16} />
-              Descartar alterações
-            </button>
+          <div className="consumer-profile-card merchant-form-card">
+            <form onSubmit={handleSubmit} className="merchant-form">
+              <div className="merchant-form-section">
+                <h3>Informações Básicas</h3>
+                <p className="muted">
+                  Esses dados identificam sua loja na busca e na página do estabelecimento.
+                </p>
 
-            <button type="submit" className="primary" disabled={isSaving}>
-              <Save size={16} />
-              {isSaving
-                ? "Salvando…"
-                : currentStore
-                  ? "Salvar alterações"
-                  : "Cadastrar loja"}
-            </button>
+                <div className="merchant-grid">
+                  <Field label="Nome da loja *">
+                    <input
+                      type="text"
+                      required
+                      minLength={2}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Ex: Flor de Lis Modas"
+                    />
+                  </Field>
+
+                  <Field label="Categoria principal">
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                    >
+                      {(data?.categories || []).map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+
+                <Field label="Descrição da loja">
+                  <textarea
+                    rows={3}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Conte brevemente sobre o seu negócio, tipos de produtos comercializados ou diferenciais..."
+                  />
+                </Field>
+              </div>
+
+              <div className="merchant-form-section">
+                <h3>Contato e Localização</h3>
+                <p className="muted">
+                  Canais diretos para os clientes conversarem com você e encontrarem seu endereço físico.
+                </p>
+
+                <div className="merchant-grid">
+                  <Field label="WhatsApp para atendimento *">
+                    <input
+                      type="tel"
+                      required
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      placeholder="(89) 99999-9999"
+                    />
+                  </Field>
+
+                  <Field label="Instagram (opcional)">
+                    <input
+                      type="text"
+                      value={instagram}
+                      onChange={(e) => setInstagram(e.target.value)}
+                      placeholder="@sualoja ou link do perfil"
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Localização / Endereço completo *">
+                  <input
+                    type="text"
+                    required
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Ex: Rua Coronel Francisco Santos, 120, Centro, Picos – PI"
+                  />
+                </Field>
+
+                <Field label="Horário de funcionamento">
+                  <input
+                    type="text"
+                    value={hours}
+                    onChange={(e) => setHours(e.target.value)}
+                    placeholder="Ex: Segunda a sexta, 8h às 18h · Sábado, 8h às 13h"
+                  />
+                </Field>
+              </div>
+
+              {error && (
+                <div className="error-banner" role="alert">
+                  <AlertTriangle size={18} />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <div className="consumer-form-actions merchant-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={handleReset}
+                  disabled={isSaving || isRequestingApproval}
+                >
+                  <RotateCcw size={16} />
+                  Descartar alterações
+                </button>
+
+                <button
+                  type="submit"
+                  className="primary"
+                  disabled={isSaving || isRequestingApproval}
+                >
+                  <Save size={16} />
+                  {isSaving
+                    ? "Salvando…"
+                    : currentStore
+                      ? "Salvar alterações"
+                      : "Cadastrar loja"}
+                </button>
+              </div>
+            </form>
           </div>
-        </form>
-      </div>
+        </>
+      )}
     </section>
   );
 }
-

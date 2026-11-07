@@ -1,4 +1,3 @@
-
 import { getAccessToken } from "./auth.js";
 
 const API_URL = import.meta.env?.VITE_API_URL || "";
@@ -24,15 +23,30 @@ export async function apiRequest(endpoint, options = {}) {
   });
 
   if (!response.ok) {
+    let detail = null;
+    try {
+      const data = await response.json();
+      if (typeof data?.detail === "string") {
+        detail = data.detail;
+      } else if (Array.isArray(data?.detail) && data.detail[0]?.msg) {
+        detail = data.detail.map((d) => d.msg).join("; ");
+      } else if (data?.message) {
+        detail = data.message;
+      }
+    } catch {
+      // response body is not JSON
+    }
+
+    let defaultMsg = `Erro na API: HTTP ${response.status}`;
     if (response.status === 401) {
-      throw new Error("Sessão inválida ou expirada.");
+      defaultMsg = "Sessão inválida ou expirada.";
+    } else if (response.status === 403) {
+      defaultMsg = "Você não possui permissão para realizar esta operação.";
     }
 
-    if (response.status === 403) {
-      throw new Error("Você não possui permissão para realizar esta operação.");
-    }
-
-    throw new Error(`Erro na API: HTTP ${response.status}`);
+    const error = new Error(detail || defaultMsg);
+    error.status = response.status;
+    throw error;
   }
 
   if (response.status === 204) {
