@@ -6,35 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth import get_current_profile, require_lojista
+from ..auth import get_current_profile, get_lojista_loja, require_lojista
 from ..config.database import get_db
 from ..models import Loja, Profile, StatusLoja, UserRole
 from ..schemas import LojaCreateIn, LojaDetailOut, LojaUpdateIn
 
 router = APIRouter(prefix="/lojista/loja", tags=["lojista - perfil da loja"])
-
-
-async def get_lojista_loja(
-    profile: Profile = Depends(require_lojista),
-    db: AsyncSession = Depends(get_db),
-) -> Loja:
-    try:
-        result = await db.execute(
-            select(Loja).where(Loja.lojista_id == profile.id)
-        )
-        loja = result.scalar_one_or_none()
-    except SQLAlchemyError:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Erro ao consultar a loja",
-        )
-
-    if loja is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Loja não encontrada para este lojista",
-        )
-    return loja
 
 
 @router.get("", response_model=LojaDetailOut)

@@ -5,10 +5,11 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config.database import get_db
-from .models import Profile, UserRole
+from .models import Loja, Profile, UserRole
 
 security = HTTPBearer(auto_error=False)
 
@@ -129,3 +130,26 @@ async def require_lojista(
         )
 
     return profile
+
+
+async def get_lojista_loja(
+    profile: Profile = Depends(require_lojista),
+    db: AsyncSession = Depends(get_db),
+) -> Loja:
+    try:
+        result = await db.execute(
+            select(Loja).where(Loja.lojista_id == profile.id)
+        )
+        loja = result.scalar_one_or_none()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erro ao consultar a loja",
+        )
+
+    if loja is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Loja não encontrada para este lojista",
+        )
+    return loja

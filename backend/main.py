@@ -14,6 +14,7 @@ from .controllers import (
     consumer_perfil,
     consumer_pontos,
     lojista_loja,
+    lojista_produtos,
     visualizacoes,
 )
 
@@ -38,6 +39,7 @@ app.include_router(consumer_favoritos.router)
 app.include_router(consumer_perfil.router)
 app.include_router(consumer_pontos.router)
 app.include_router(lojista_loja.router)
+app.include_router(lojista_produtos.router)
 app.include_router(visualizacoes.router)
 
 @app.get("/health")

@@ -98,6 +98,7 @@ create table public.produtos (
     titulo              text not null,
     descricao           text,
     preco_base          numeric(10,2) not null check (preco_base >= 0),
+    preco_promocional   numeric(10,2) check (preco_promocional is null or (preco_promocional >= 0 and preco_promocional < preco_base)),
     foto_principal_url  text,
     ativo               boolean not null default true,
     criado_em           timestamptz not null default now(),
