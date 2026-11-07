@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .models import StatusLoja, TipoTransacaoPontos, UserRole
 
@@ -315,3 +315,114 @@ class LojaUpdateIn(BaseModel):
                 raise ValueError("endereco_uf deve conter exatamente 2 caracteres")
             return v.strip().upper()
         return v
+
+
+class VariacaoProdutoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tamanho: str | None = None
+    cor: str | None = None
+    preco: Decimal | None = Field(default=None, ge=0)
+    sku: str | None = None
+    ativo: bool = True
+
+
+class VariacaoProdutoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    produto_id: uuid.UUID
+    tamanho: str | None = None
+    cor: str | None = None
+    preco: Decimal | None = None
+    sku: str | None = None
+    ativo: bool = True
+
+
+class ProdutoFotoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    produto_id: uuid.UUID
+    url: str
+    ordem: int
+    criado_em: datetime
+
+
+class ProdutoLojistaCreateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    categoria_id: uuid.UUID
+    titulo: str
+    descricao: str | None = None
+    preco_base: Decimal = Field(ge=0)
+    preco_promocional: Decimal | None = None
+    foto_principal_url: str | None = None
+    ativo: bool = True
+    variacoes: list[VariacaoProdutoIn] | None = None
+
+    @field_validator("titulo")
+    @classmethod
+    def validar_titulo(cls, v: str) -> str:
+        if not v or not v.strip() or len(v.strip()) < 2:
+            raise ValueError("O título do produto deve ter no mínimo 2 caracteres")
+        return v.strip()
+
+    @model_validator(mode="after")
+    def validar_precos(self):
+        if self.preco_promocional is not None:
+            if self.preco_promocional < 0:
+                raise ValueError("O preço promocional não pode ser negativo")
+            if self.preco_promocional >= self.preco_base:
+                raise ValueError("O preço promocional deve ser menor que o preço base")
+        return self
+
+
+class ProdutoLojistaUpdateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    categoria_id: uuid.UUID | None = None
+    titulo: str | None = None
+    descricao: str | None = None
+    preco_base: Decimal | None = Field(default=None, ge=0)
+    preco_promocional: Decimal | None = None
+    foto_principal_url: str | None = None
+    ativo: bool | None = None
+    variacoes: list[VariacaoProdutoIn] | None = None
+
+    @field_validator("titulo")
+    @classmethod
+    def validar_titulo(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not v.strip() or len(v.strip()) < 2:
+                raise ValueError("O título do produto deve ter no mínimo 2 caracteres")
+            return v.strip()
+        return v
+
+    @model_validator(mode="after")
+    def validar_precos(self):
+        if self.preco_promocional is not None and self.preco_base is not None:
+            if self.preco_promocional < 0:
+                raise ValueError("O preço promocional não pode ser negativo")
+            if self.preco_promocional >= self.preco_base:
+                raise ValueError("O preço promocional deve ser menor que o preço base")
+        return self
+
+
+class ProdutoLojistaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    loja_id: uuid.UUID
+    categoria_id: uuid.UUID
+    categoria_nome: str | None = None
+    titulo: str
+    descricao: str | None = None
+    preco_base: Decimal
+    preco_promocional: Decimal | None = None
+    foto_principal_url: str | None = None
+    ativo: bool
+    criado_em: datetime
+    atualizado_em: datetime
+    fotos: list[ProdutoFotoOut] = Field(default_factory=list)
+    variacoes: list[VariacaoProdutoOut] = Field(default_factory=list)

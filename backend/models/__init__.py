@@ -147,6 +147,10 @@ class Produto(Base):
         Numeric(10, 2),
         nullable=False,
     )
+    preco_promocional: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 2),
+        nullable=True,
+    )
     foto_principal_url: Mapped[str | None] = mapped_column(Text)
     ativo: Mapped[bool] = mapped_column(
         Boolean,
@@ -275,3 +279,34 @@ class Visualizacao(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+
+
+class ProdutoFoto(Base):
+    __tablename__ = "produto_fotos"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    produto_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("produtos.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    ordem: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+class VariacaoProduto(Base):
+    __tablename__ = "variacoes_produto"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    produto_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("produtos.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    tamanho: Mapped[str | None] = mapped_column(Text)
+    cor: Mapped[str | None] = mapped_column(Text)
+    preco: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
+    sku: Mapped[str | None] = mapped_column(Text)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
