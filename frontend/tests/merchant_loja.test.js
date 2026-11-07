@@ -302,3 +302,4 @@ test("modo demo mantém funcionamento com saveMerchantStore e getMerchantStore",
   assert.equal(saveResult.store.name, "Loja Demo Atualizada");
   assert.equal(mockData.stores[0].name, "Loja Demo Atualizada");
 });
+
