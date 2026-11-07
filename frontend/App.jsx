@@ -843,6 +843,7 @@ export default function App() {
               data={data}
               go={go}
               notify={setToast}
+              useRealApi={Boolean(authSession?.access_token)}
               onSaveStore={(savedStore) => {
                 update((draft) => {
                   const index = draft.stores.findIndex(
