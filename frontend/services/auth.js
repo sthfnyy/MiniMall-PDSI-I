@@ -178,6 +178,13 @@ export function canAccessConsumerRoute(route, user) {
   return Boolean(user && user.role === "consumidor");
 }
 
+export function getAuthenticatedRoute(role) {
+  if (role === "admin") return "admin";
+  if (role === "consumidor") return "consumidor";
+  if (role === "lojista") return "lojista";
+  return "inicio";
+}
+
 export async function getAuthenticatedProfile() {
   const token = await getAccessToken();
 

@@ -18,7 +18,7 @@ export function searchProducts(data, filters) {
         (!query ||
           normalize(p.name + " " + p.description).includes(normalize(query))) &&
         (!category || p.category === category) &&
-        (!store || p.store === Number(store)) &&
+        (!store || String(p.store) === String(store)) &&
         (min === "" || price(p) >= Number(min)) &&
         (max === "" || price(p) <= Number(max)),
     )
@@ -27,6 +27,6 @@ export function searchProducts(data, filters) {
         ? price(a) - price(b)
         : sort === "maior"
           ? price(b) - price(a)
-          : a.id - b.id,
+          : String(a.id).localeCompare(String(b.id), "pt-BR", { numeric: true }),
     );
 }
