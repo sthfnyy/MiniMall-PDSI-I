@@ -100,6 +100,47 @@ class CategoriaIn(BaseModel):
     nome: str
 
 
+class ConsumerCatalogoLojaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nome_loja: str
+    descricao: str | None
+    endereco_logradouro: str | None
+    endereco_numero: str | None
+    endereco_bairro: str | None
+    endereco_cidade: str
+    endereco_uf: str
+    endereco_cep: str | None
+    latitude: Decimal | None
+    longitude: Decimal | None
+    horario_funcionamento: dict | None
+    whatsapp: str
+    instagram: str | None
+    facebook: str | None
+    logo_url: str | None
+    status: StatusLoja
+
+
+class ConsumerCatalogoProdutoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    loja_id: uuid.UUID
+    categoria_id: uuid.UUID
+    titulo: str
+    descricao: str | None
+    preco_base: Decimal
+    foto_principal_url: str | None
+    ativo: bool
+
+
+class ConsumerCatalogoOut(BaseModel):
+    lojas: list[ConsumerCatalogoLojaOut]
+    produtos: list[ConsumerCatalogoProdutoOut]
+    categorias: list[CategoriaOut]
+
+
 class AvaliacaoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

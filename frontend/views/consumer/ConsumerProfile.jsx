@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   User,
   Mail,
@@ -19,22 +19,42 @@ export default function ConsumerProfile({
   onPoints,
   onReviews,
   onLogout,
+  useRealApi = false,
 }) {
   const [editing, setEditing] = useState(false);
-
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  function handleSave(e) {
+  useEffect(() => {
+    setName(user?.name || "");
+    setEmail(user?.email || "");
+  }, [user?.name, user?.email]);
+
+  async function handleSave(e) {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
+    setError("");
 
-    onUpdate({
-      ...user,
-      name: name.trim(),
-      email: email.trim(),
-    });
+    try {
+      const updatedUser = await onUpdate({
+        ...user,
+        name: name.trim(),
+        email: email.trim(),
+      });
 
-    setEditing(false);
+      if (updatedUser) {
+        setName(updatedUser.name || "");
+        setEmail(updatedUser.email || "");
+      }
+      setEditing(false);
+    } catch (updateError) {
+      setError(updateError.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -62,7 +82,10 @@ export default function ConsumerProfile({
             <button
               className="secondary"
               type="button"
-              onClick={() => setEditing(true)}
+              onClick={() => {
+                setError("");
+                setEditing(true);
+              }}
             >
               <Pencil size={17} />
               Editar perfil
@@ -84,25 +107,36 @@ export default function ConsumerProfile({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={useRealApi}
               required
             />
+
+            {useRealApi && (
+              <small className="muted">
+                O e-mail da conta não é alterado por este formulário.
+              </small>
+            )}
+
+            {error && <p className="error" role="alert">{error}</p>}
 
             <div className="consumer-form-actions">
               <button
                 className="secondary"
                 type="button"
+                disabled={saving}
                 onClick={() => {
                   setName(user?.name || "");
                   setEmail(user?.email || "");
+                  setError("");
                   setEditing(false);
                 }}
               >
                 Cancelar
               </button>
 
-              <button className="primary" type="submit">
+              <button className="primary" type="submit" disabled={saving}>
                 <Save size={17} />
-                Salvar alterações
+                {saving ? "Salvando..." : "Salvar alterações"}
               </button>
             </div>
           </form>

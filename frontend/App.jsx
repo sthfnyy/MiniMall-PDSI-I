@@ -752,24 +752,37 @@ export default function App() {
                 go("consumidor/avaliacoes")
               }
               onLogout={handleLogout}
-              onUpdate={(updatedUser) => {
-                setUser(updatedUser);
+              useRealApi={Boolean(authSession?.access_token)}
+              onUpdate={async (updatedUser) => {
+                const result = await saveConsumerProfile({
+                  useRealApi: Boolean(authSession?.access_token),
+                  user: updatedUser,
+                });
+
+                if (result.backendProfile) {
+                  setBackendProfile(result.backendProfile);
+                  setToast("Perfil atualizado.");
+                  return result.user;
+                }
+
+                setUser(result.user);
 
                 update((d) => {
                   const index = d.users.findIndex(
-                    (u) => u.id === updatedUser.id,
+                    (u) => u.id === result.user.id,
                   );
 
                   if (index !== -1) {
-                    d.users[index] = updatedUser;
+                    d.users[index] = result.user;
                   } else {
-                    d.users.push(updatedUser);
+                    d.users.push(result.user);
                   }
 
                   return d;
                 });
 
                 setToast("Perfil atualizado.");
+                return result.user;
               }}
             />
           ) : (
@@ -799,6 +812,7 @@ export default function App() {
               onToggleFavorite={toggleFavorite}
               isFavorite={isFavorite}
               go={go}
+              useRealApi={Boolean(authSession?.access_token)}
             />
           ) : (
             <Empty

@@ -47,7 +47,7 @@ export async function uploadConsumerReviewPhoto(
 ) {
   validateConsumerReviewPhoto(file);
   const body = new FormData();
-  body.append("file", file);
+  body.append("arquivo", file);
 
   try {
     return await request(`/consumidor/avaliacoes/${assessmentId}/fotos`, {
