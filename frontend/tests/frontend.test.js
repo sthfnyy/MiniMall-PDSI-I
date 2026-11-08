@@ -3,6 +3,14 @@ import assert from "node:assert/strict";
 import { seed, rating } from "../services/catalog.js";
 import { searchProducts } from "../services/search.js";
 import {
+  adaptConsumerCatalog,
+  getConsumerCatalog,
+  isRealCatalogId,
+  loadCatalogForMode,
+  selectCatalogHighlights,
+} from "../services/catalogApi.js";
+import { getAuthenticatedRoute } from "../services/auth.js";
+import {
   metrics,
   saveCategory,
   deleteCategory,
@@ -46,6 +54,103 @@ import {
   createStoreProduct,
 } from "../services/merchant.js";
 const fresh = () => structuredClone(seed);
+
+const realCatalogPayload = () => ({
+  lojas: [{
+    id: "55c27b92-8108-4fb2-9ad0-28fc2441548c",
+    nome_loja: "Loja Real",
+    descricao: "Descrição real",
+    endereco_cidade: "Iguatu",
+    endereco_uf: "CE",
+    whatsapp: "5588999999999",
+    status: "aprovada",
+  }],
+  produtos: [{
+    id: "74a94a6e-3b50-41c3-9689-698783f97e44",
+    loja_id: "55c27b92-8108-4fb2-9ad0-28fc2441548c",
+    categoria_id: "9c8bb3a9-c3a8-4d0a-b438-e33f6d82934d",
+    titulo: "Produto Real",
+    descricao: "Descrição",
+    preco_base: "49.90",
+    foto_principal_url: "https://example.com/produto.png",
+    ativo: true,
+  }],
+  categorias: [{
+    id: "9c8bb3a9-c3a8-4d0a-b438-e33f6d82934d",
+    nome: "Categoria Real",
+  }],
+});
+
+test("catálogo real chama /consumidor/catalogo", async () => {
+  const calls = [];
+  await getConsumerCatalog(async (...args) => {
+    calls.push(args);
+    return realCatalogPayload();
+  });
+  assert.deepEqual(calls, [["/consumidor/catalogo"]]);
+});
+
+test("catálogo real preserva UUIDs e vínculo produto para loja", () => {
+  const payload = realCatalogPayload();
+  const catalog = adaptConsumerCatalog(payload);
+  assert.equal(catalog.stores[0].id, payload.lojas[0].id);
+  assert.equal(catalog.products[0].id, payload.produtos[0].id);
+  assert.equal(catalog.products[0].store, catalog.stores[0].id);
+});
+
+test("catálogo real trata resposta vazia", () => {
+  assert.deepEqual(adaptConsumerCatalog({ lojas: [], produtos: [], categorias: [] }), {
+    stores: [], products: [], categories: [],
+  });
+});
+
+test("erro da API de catálogo é propagado", async () => {
+  await assert.rejects(
+    getConsumerCatalog(async () => { throw new Error("Catálogo indisponível"); }),
+    /Catálogo indisponível/,
+  );
+});
+
+test("modo demo não chama catálogo real", async () => {
+  let requested = false;
+  assert.equal(await loadCatalogForMode(false, async () => {
+    requested = true;
+  }), null);
+  assert.equal(requested, false);
+});
+
+test("loja real chega ao fluxo de avaliação com UUID válido", () => {
+  const store = adaptConsumerCatalog(realCatalogPayload()).stores[0];
+  assert.equal(isBackendStoreId(store.id), true);
+});
+
+test("IDs numéricos demo não são válidos para APIs reais", () => {
+  assert.equal(isBackendStoreId(seed.stores[0].id), false);
+  assert.equal(isRealCatalogId(seed.products[0].id), false);
+});
+
+test("produto real preserva UUID no payload de favoritos", async () => {
+  const product = adaptConsumerCatalog(realCatalogPayload()).products[0];
+  const calls = [];
+  const { addConsumerFavorite } = await import("../services/favorites.js");
+  await addConsumerFavorite(product.id, async (...args) => calls.push(args));
+  assert.deepEqual(JSON.parse(calls[0][1].body), { produto_id: product.id });
+});
+
+test("Home real seleciona produtos disponíveis sem IDs numéricos fixos", () => {
+  const products = ["a", "b", "c", "d", "e"].map((suffix) => ({
+    id: `74a94a6e-3b50-41c3-9689-698783f97e4${suffix}`,
+  }));
+  assert.deepEqual(selectCatalogHighlights(products, true), products.slice(0, 4));
+  assert.deepEqual(selectCatalogHighlights(fresh().products, false).map((p) => p.id), [2, 4, 3, 5]);
+});
+
+test("login autenticado redireciona somente após perfil definir a role", () => {
+  assert.equal(getAuthenticatedRoute("consumidor"), "consumidor");
+  assert.equal(getAuthenticatedRoute("lojista"), "lojista");
+  assert.equal(getAuthenticatedRoute("admin"), "admin");
+  assert.equal(getAuthenticatedRoute(undefined), "inicio");
+});
 test("vitrine combina busca sem acentos, loja, categoria e preço", () => {
   assert.deepEqual(
     searchProducts(fresh(), {
