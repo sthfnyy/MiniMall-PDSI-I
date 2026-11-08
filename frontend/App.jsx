@@ -34,7 +34,6 @@ import { Modal, Empty } from "./components/ui";
 
 import { money, price } from "./services/catalog";
 import { loadData, saveData } from "./services/storage";
-import { saveConsumerProfile } from "./services/profile.js";
 import { getConsumerCatalog, isRealCatalogId } from "./services/catalogApi.js";
 import {
   addConsumerFavorite,
@@ -224,15 +223,6 @@ export default function App() {
     }
 
     if (currentUser && route === "login") {
-      if (currentUser.role === "admin") {
-        go("admin");
-      } else if (currentUser.role === "consumidor") {
-        go("consumidor");
-      } else if (currentUser.role === "lojista") {
-        go("lojista");
-      } else {
-        go("inicio");
-      }
       go(getAuthenticatedRoute(currentUser.role));
     }
   }, [authLoading, currentUser, route]);
@@ -344,9 +334,6 @@ export default function App() {
     go(`loja/${id}`);
 
   const isFavorite = (productId) => {
-    if (authSession?.access_token) {
-      return false;
-    }
     if (useRealCatalog) return realFavoriteIds.includes(productId);
 
     if (!currentUser || currentUser.role !== "consumidor") {
@@ -378,10 +365,6 @@ export default function App() {
       return;
     }
 
-    if (authSession?.access_token) {
-      setToast(
-        "Favoritos reais estarão disponíveis quando o catálogo usar produtos da API.",
-      );
     if (useRealCatalog) {
       if (!isRealCatalogId(product.id)) {
         setToast("Este produto de demonstração não pode ser enviado à API.");
