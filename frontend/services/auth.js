@@ -185,6 +185,11 @@ export function getAuthenticatedRoute(role) {
   return "inicio";
 }
 
+export function getPendingAuthenticatedRoute(pending, user) {
+  if (!pending || !user?.role) return null;
+  return getAuthenticatedRoute(user.role);
+}
+
 export async function getAuthenticatedProfile() {
   const token = await getAccessToken();
 
