@@ -171,7 +171,15 @@ export default function App() {
     }
 
     if (currentUser && route === "login") {
-      go("inicio");
+      if (currentUser.role === "admin") {
+        go("admin");
+      } else if (currentUser.role === "consumidor") {
+        go("consumidor");
+      } else if (currentUser.role === "lojista") {
+        go("lojista");
+      } else {
+        go("inicio");
+      }
     }
   }, [authLoading, currentUser, route]);
 
@@ -626,7 +634,6 @@ export default function App() {
                 if (result.session) {
                   applyAuthSession(result.session);
                   setUser(null);
-                  go("inicio");
                   setToast("Você entrou na conta.");
                   return;
                 }
