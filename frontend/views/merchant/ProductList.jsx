@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Package,
   Plus,
@@ -21,6 +21,10 @@ import {
   deleteStoreProduct,
   updateStoreProduct,
   createStoreProduct,
+  fetchMerchantProducts,
+  fetchMerchantCategories,
+  deleteMerchantProduct,
+  fetchMerchantStore,
 } from "../../services/merchant";
 import MerchantNav from "./MerchantNav";
 
@@ -30,9 +34,21 @@ export default function ProductList({
   update,
   go,
   notify,
+  useRealApi = false,
+  fetchProductsFn = fetchMerchantProducts,
+  fetchCategoriesFn = fetchMerchantCategories,
+  deleteProductFn = deleteMerchantProduct,
+  fetchStoreFn = fetchMerchantStore,
 }) {
-  const store = getMerchantStore(data, user);
-  const products = store ? getStoreProducts(data, store.id) : [];
+  const demoStore = getMerchantStore(data, user);
+  const [realStore, setRealStore] = useState(null);
+  const [realProducts, setRealProducts] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [isLoading, setIsLoading] = useState(useRealApi);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  const store = useRealApi ? (realStore || demoStore) : demoStore;
 
   // Filter & Search states
   const [search, setSearch] = useState("");
@@ -42,6 +58,57 @@ export default function ProductList({
   const [viewProduct, setViewProduct] = useState(null);
   const [deleteProduct, setDeleteProduct] = useState(null);
 
+  // Fetch real data when in API mode
+  useEffect(() => {
+    let active = true;
+
+    if (!useRealApi) {
+      setIsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    Promise.all([
+      fetchStoreFn().catch(() => null),
+      fetchProductsFn().catch((err) => {
+        throw err;
+      }),
+      fetchCategoriesFn().catch(() => []),
+    ])
+      .then(([storeRes, prodsRes, catsRes]) => {
+        if (!active) return;
+        if (storeRes) setRealStore(storeRes);
+        setRealProducts(prodsRes || []);
+        setCategoriesList(catsRes || []);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err.message || "Erro ao carregar os produtos.");
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [useRealApi, fetchStoreFn, fetchProductsFn, fetchCategoriesFn]);
+
+  const rawProducts = useRealApi
+    ? realProducts
+    : store
+      ? getStoreProducts(data, store.id)
+      : [];
+
+  const categoriesOptions =
+    useRealApi && categoriesList.length > 0
+      ? categoriesList.map((c) => ({ id: c.id, name: c.name || c.nome }))
+      : (data?.categories || []).map((cat) => ({ id: cat, name: cat }));
+
   function handleOpenEdit(p) {
     go(`lojista/produtos/editar/${p.id}`);
   }
@@ -50,30 +117,49 @@ export default function ProductList({
     go("lojista/produtos/novo");
   }
 
-  function handleConfirmDelete() {
+  async function handleConfirmDelete() {
     if (!deleteProduct) return;
+    setIsDeleting(true);
+
     try {
-      update((draft) => {
-        deleteStoreProduct(draft, user, deleteProduct.id);
-        return draft;
-      });
+      if (useRealApi) {
+        await deleteProductFn(deleteProduct.id);
+        setRealProducts((prev) => prev.filter((p) => p.id !== deleteProduct.id));
+        if (update) {
+          update((draft) => {
+            const idx = draft.products.findIndex((p) => p.id === deleteProduct.id);
+            if (idx !== -1) draft.products[idx].deleted = true;
+            return draft;
+          });
+        }
+      } else {
+        update((draft) => {
+          deleteStoreProduct(draft, user, deleteProduct.id);
+          return draft;
+        });
+      }
+
       if (notify) notify(`Produto "${deleteProduct.name}" excluído.`);
       setDeleteProduct(null);
     } catch (err) {
       if (notify) notify(err.message || "Não foi possível excluir o produto.");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
   // Filter products by search and category
-  const filteredProducts = products.filter((p) => {
+  const filteredProducts = rawProducts.filter((p) => {
     const matchesSearch =
       !search.trim() ||
-      p.name.toLowerCase().includes(search.trim().toLowerCase()) ||
+      (p.name && p.name.toLowerCase().includes(search.trim().toLowerCase())) ||
       (p.description &&
         p.description.toLowerCase().includes(search.trim().toLowerCase()));
 
     const matchesCategory =
-      !selectedCategory || p.category === selectedCategory;
+      !selectedCategory ||
+      p.category === selectedCategory ||
+      p.categoryId === selectedCategory;
 
     return matchesSearch && matchesCategory;
   });
@@ -88,7 +174,11 @@ export default function ProductList({
 
       <MerchantNav current="produtos" go={go} />
 
-      {!store ? (
+      {isLoading ? (
+        <div className="merchant-loading-state" role="status">
+          <p>Carregando catálogo de produtos…</p>
+        </div>
+      ) : !store ? (
         <div className="merchant-empty-notice">
           <Store size={32} />
           <div>
@@ -108,6 +198,13 @@ export default function ProductList({
         </div>
       ) : (
         <>
+          {error && (
+            <div className="error-banner" role="alert">
+              <AlertTriangle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
+
           {/* TOOLBAR */}
           <div className="merchant-products-toolbar">
             <div className="merchant-toolbar-filters">
@@ -129,9 +226,9 @@ export default function ProductList({
                 aria-label="Filtrar por categoria"
               >
                 <option value="">Todas as categorias</option>
-                {(data.categories || []).map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
+                {categoriesOptions.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
                   </option>
                 ))}
               </select>
@@ -139,7 +236,7 @@ export default function ProductList({
 
             <div className="merchant-toolbar-actions">
               <span className="merchant-count-badge">
-                {products.length} {products.length === 1 ? "produto" : "produtos"}
+                {rawProducts.length} {rawProducts.length === 1 ? "produto" : "produtos"}
               </span>
 
               <button
@@ -156,7 +253,7 @@ export default function ProductList({
           {/* LISTAGEM DE PRODUTOS */}
           {filteredProducts.length === 0 ? (
             <div className="panel empty-products-panel">
-              {products.length === 0 ? (
+              {rawProducts.length === 0 ? (
                 <Empty
                   title="Nenhum produto cadastrado"
                   text="Sua loja ainda não possui produtos. Cadastre o primeiro item para que os consumidores possam visualizá-lo."
@@ -318,11 +415,11 @@ export default function ProductList({
                     <span className="detail-price-sale">
                       {money(viewProduct.sale)}
                     </span>
-                    <span className="detail-price-orig">
-                      De {money(viewProduct.price)}
+                    <span className="detail-price-original">
+                      {money(viewProduct.price)}
                     </span>
-                    <span className="status-badge approved">
-                      Em promoção
+                    <span className="product-sale-tag">
+                      <Percent size={12} /> Em promoção
                     </span>
                   </>
                 ) : (
@@ -332,20 +429,21 @@ export default function ProductList({
                 )}
               </div>
 
-              <div className="merchant-detail-section">
-                <h4>Descrição</h4>
-                <p>
-                  {viewProduct.description ||
-                    "Nenhuma descrição informada para este produto."}
-                </p>
-              </div>
+              {viewProduct.description ? (
+                <div className="merchant-detail-section">
+                  <h4>Descrição</h4>
+                  <p>{viewProduct.description}</p>
+                </div>
+              ) : (
+                <p className="muted">Nenhuma descrição informada para este produto.</p>
+              )}
 
               {viewProduct.variations && viewProduct.variations.length > 0 && (
                 <div className="merchant-detail-section">
-                  <h4>Variações e Opções</h4>
-                  <div className="merchant-variations-list">
+                  <h4>Variações disponíveis</h4>
+                  <div className="merchant-modal-variations">
                     {viewProduct.variations.map((v) => (
-                      <span key={v} className="variation-pill active">
+                      <span key={v} className="variation-pill">
                         {v}
                       </span>
                     ))}
@@ -410,6 +508,7 @@ export default function ProductList({
                 type="button"
                 className="secondary"
                 onClick={() => setDeleteProduct(null)}
+                disabled={isDeleting}
               >
                 Cancelar
               </button>
@@ -418,9 +517,10 @@ export default function ProductList({
                 type="button"
                 className="primary delete-confirm-btn"
                 onClick={handleConfirmDelete}
+                disabled={isDeleting}
               >
                 <Trash2 size={16} />
-                Sim, excluir produto
+                {isDeleting ? "Excluindo..." : "Sim, excluir produto"}
               </button>
             </div>
           </div>
@@ -429,4 +529,3 @@ export default function ProductList({
     </section>
   );
 }
-

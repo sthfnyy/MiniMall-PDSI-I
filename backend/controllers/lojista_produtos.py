@@ -13,6 +13,7 @@ from ..auth import get_lojista_loja
 from ..config.database import get_db
 from ..models import Categoria, Loja, Produto, ProdutoFoto, VariacaoProduto
 from ..schemas import (
+    CategoriaOut,
     ProdutoFotoOut,
     ProdutoLojistaCreateIn,
     ProdutoLojistaOut,
@@ -228,6 +229,16 @@ async def criar_produto_lojista(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Não foi possível criar o produto",
         )
+
+
+@router.get("/categorias", response_model=list[CategoriaOut])
+async def listar_categorias_lojista(
+    db: AsyncSession = Depends(get_db),
+    _loja: Loja = Depends(get_lojista_loja),
+):
+    """Lista as categorias disponíveis para o lojista vincular aos produtos."""
+    result = await db.execute(select(Categoria).order_by(Categoria.nome))
+    return result.scalars().all()
 
 
 @router.get("/{produto_id}", response_model=ProdutoLojistaOut)
