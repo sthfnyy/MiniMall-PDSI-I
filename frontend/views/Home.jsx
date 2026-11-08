@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import { ArrowUpRight, ArrowRight, Pause, Play, Sparkles } from "lucide-react";
 import { money, price } from "../services/catalog";
+import { selectCatalogHighlights } from "../services/catalogApi.js";
 
 export default function Home({
   products,
@@ -9,6 +10,7 @@ export default function Home({
   onExplore,
   onStores,
   storeCard,
+  useRealCatalog = false,
 }) {
   const [paused, setPaused] = useState(
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
@@ -20,10 +22,8 @@ export default function Home({
     preference.addEventListener("change", sync);
     return () => preference.removeEventListener("change", sync);
   }, []);
-  const picks = [2, 4, 3, 5]
-    .map((id) => products.find((p) => p.id === id))
-    .filter(Boolean);
-  const categories = [
+  const picks = selectCatalogHighlights(products, useRealCatalog);
+  const demoCategories = [
     {
       name: "Vestuário",
       title: "Vestuário",
@@ -43,6 +43,16 @@ export default function Home({
       tag: "03 / CUIDADO",
     },
   ];
+  const categories = useRealCatalog
+    ? [...new Set(products.map((product) => product.category).filter(Boolean))]
+        .slice(0, 3)
+        .map((name, index) => ({
+          name,
+          title: name,
+          image: products.find((product) => product.category === name)?.image,
+          tag: `${String(index + 1).padStart(2, "0")} / CATEGORIA`,
+        }))
+    : demoCategories;
   function move(e) {
     if (paused || e.pointerType === "touch") return;
     const rect = e.currentTarget.getBoundingClientRect();

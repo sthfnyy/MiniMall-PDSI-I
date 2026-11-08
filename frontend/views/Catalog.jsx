@@ -132,7 +132,7 @@ export default function Catalog({
             ["category", filters.category],
             [
               "store",
-              data.stores.find((s) => s.id === Number(filters.store))?.name,
+              data.stores.find((s) => String(s.id) === String(filters.store))?.name,
             ],
           ].map(
             ([key, label]) =>
