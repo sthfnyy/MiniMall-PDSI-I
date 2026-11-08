@@ -9,7 +9,10 @@ import {
   loadCatalogForMode,
   selectCatalogHighlights,
 } from "../services/catalogApi.js";
-import { getAuthenticatedRoute } from "../services/auth.js";
+import {
+  getAuthenticatedRoute,
+  getPendingAuthenticatedRoute,
+} from "../services/auth.js";
 import {
   metrics,
   saveCategory,
@@ -150,6 +153,27 @@ test("login autenticado redireciona somente após perfil definir a role", () => 
   assert.equal(getAuthenticatedRoute("lojista"), "lojista");
   assert.equal(getAuthenticatedRoute("admin"), "admin");
   assert.equal(getAuthenticatedRoute(undefined), "inicio");
+});
+
+test("redirecionamento pendente aguarda o perfil e independe da rota atual", () => {
+  assert.equal(getPendingAuthenticatedRoute(true, null), null);
+  assert.equal(getPendingAuthenticatedRoute(true, { role: undefined }), null);
+  assert.equal(
+    getPendingAuthenticatedRoute(true, { role: "consumidor" }),
+    "consumidor",
+  );
+  assert.equal(
+    getPendingAuthenticatedRoute(true, { role: "lojista" }),
+    "lojista",
+  );
+  assert.equal(
+    getPendingAuthenticatedRoute(true, { role: "admin" }),
+    "admin",
+  );
+  assert.equal(
+    getPendingAuthenticatedRoute(false, { role: "consumidor" }),
+    null,
+  );
 });
 test("vitrine combina busca sem acentos, loja, categoria e preço", () => {
   assert.deepEqual(

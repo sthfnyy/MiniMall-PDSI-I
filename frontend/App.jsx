@@ -34,6 +34,7 @@ import { Modal, Empty } from "./components/ui";
 
 import { money, price } from "./services/catalog";
 import { loadData, saveData } from "./services/storage";
+import { saveConsumerProfile } from "./services/profile.js";
 import { getConsumerCatalog, isRealCatalogId } from "./services/catalogApi.js";
 import {
   addConsumerFavorite,
@@ -52,6 +53,7 @@ import {
   signOut,
   isConsumerRoute,
   getAuthenticatedRoute,
+  getPendingAuthenticatedRoute,
 } from "./services/auth";
 
 const emptyFilters = {
@@ -81,6 +83,7 @@ export default function App() {
   const [catalogError, setCatalogError] = useState("");
   const [catalogAttempt, setCatalogAttempt] = useState(0);
   const [realFavoriteIds, setRealFavoriteIds] = useState([]);
+  const [authRedirectPending, setAuthRedirectPending] = useState(false);
 
   
   const currentUser = authUser
@@ -217,6 +220,17 @@ export default function App() {
   useEffect(() => {
     if (authLoading) return;
 
+    const authenticatedRoute = getPendingAuthenticatedRoute(
+      authRedirectPending,
+      currentUser,
+    );
+
+    if (authenticatedRoute) {
+      setAuthRedirectPending(false);
+      go(authenticatedRoute);
+      return;
+    }
+
     if (!currentUser && isConsumerRoute(route)) {
       go("login");
       return;
@@ -225,7 +239,7 @@ export default function App() {
     if (currentUser && route === "login") {
       go(getAuthenticatedRoute(currentUser.role));
     }
-  }, [authLoading, currentUser, route]);
+  }, [authLoading, authRedirectPending, currentUser, route]);
 
   useEffect(() => {
     const change = () => {
@@ -714,6 +728,7 @@ export default function App() {
               }
               onSuccess={(result) => {
                 if (result.session) {
+                  setAuthRedirectPending(true);
                   applyAuthSession(result.session);
                   setUser(null);
                   setToast("Você entrou na conta.");
