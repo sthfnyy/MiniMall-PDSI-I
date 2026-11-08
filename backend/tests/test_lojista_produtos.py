@@ -536,6 +536,17 @@ class LojistaProdutosTestCase(unittest.TestCase):
         self.assertTrue(response.json()["url"].startswith("https://"))
         self.assertEqual(len(storage.uploaded), 1)
 
+    def test_listar_categorias_lojista_sucesso(self):
+        categoria = Categoria(id=uuid.uuid4(), nome="Vestuário")
+        session = FakeSession([FakeResult(scalars=[categoria])])
+        self.autenticar(session=session)
+
+        response = self.client.get("/lojista/produtos/categorias")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()), 1)
+        self.assertEqual(response.json()[0]["nome"], "Vestuário")
+
 
 if __name__ == "__main__":
     unittest.main()

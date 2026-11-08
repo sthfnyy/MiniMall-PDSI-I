@@ -1,8 +1,11 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import text
+from sqlalchemy import select, text
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config.database import async_session
+from .config.database import async_session, get_db
+from .models import Categoria
+from .schemas import CategoriaOut
 from .controllers import (
     auth_profile,
     admin_categorias,
@@ -47,6 +50,12 @@ app.include_router(visualizacoes.router)
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/categorias", response_model=list[CategoriaOut], tags=["categorias"])
+async def listar_categorias(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Categoria).order_by(Categoria.nome))
+    return result.scalars().all()
 
 
 @app.get("/db-test")

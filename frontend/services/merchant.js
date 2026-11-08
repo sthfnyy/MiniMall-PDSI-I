@@ -414,3 +414,221 @@ export function createStoreProduct(data, user, values = {}) {
   data.products.push(newProduct);
   return { data, product: newProduct };
 }
+
+export function normalizeProductFromApi(apiProduct) {
+  if (!apiProduct) return null;
+
+  return {
+    id: apiProduct.id,
+    store: apiProduct.loja_id,
+    loja_id: apiProduct.loja_id,
+    categoryId: apiProduct.categoria_id,
+    categoria_id: apiProduct.categoria_id,
+    category: apiProduct.categoria_nome || "",
+    categoria_nome: apiProduct.categoria_nome || "",
+    name: apiProduct.titulo,
+    titulo: apiProduct.titulo,
+    description: apiProduct.descricao || "",
+    descricao: apiProduct.descricao || "",
+    price: Number(apiProduct.preco_base),
+    preco_base: Number(apiProduct.preco_base),
+    sale: apiProduct.preco_promocional != null ? Number(apiProduct.preco_promocional) : 0,
+    preco_promocional: apiProduct.preco_promocional != null ? Number(apiProduct.preco_promocional) : null,
+    image: apiProduct.foto_principal_url || "",
+    foto_principal_url: apiProduct.foto_principal_url || "",
+    active: Boolean(apiProduct.ativo),
+    ativo: Boolean(apiProduct.ativo),
+    variations: Array.isArray(apiProduct.variacoes)
+      ? apiProduct.variacoes.map((v) => v.tamanho || v.cor || v.sku || "").filter(Boolean)
+      : [],
+    fotos: apiProduct.fotos || [],
+  };
+}
+
+export async function fetchMerchantCategories(request = apiRequest) {
+  try {
+    const list = await request("/lojista/produtos/categorias");
+    return (list || []).map((cat) => ({
+      id: cat.id,
+      name: cat.nome || cat.name,
+      nome: cat.nome || cat.name,
+    }));
+  } catch {
+    try {
+      const list = await request("/categorias");
+      return (list || []).map((cat) => ({
+        id: cat.id,
+        name: cat.nome || cat.name,
+        nome: cat.nome || cat.name,
+      }));
+    } catch {
+      return [];
+    }
+  }
+}
+
+export async function fetchMerchantProducts(params = {}, request = apiRequest) {
+  const query = new URLSearchParams();
+  if (params.busca?.trim()) query.set("busca", params.busca.trim());
+  if (params.categoria_id) query.set("categoria_id", params.categoria_id);
+  if (params.ativo !== undefined && params.ativo !== null && params.ativo !== "") {
+    query.set("ativo", String(params.ativo));
+  }
+
+  const qs = query.toString();
+  const endpoint = qs ? `/lojista/produtos?${qs}` : "/lojista/produtos";
+  const list = await request(endpoint);
+  return (list || []).map(normalizeProductFromApi);
+}
+
+export async function fetchMerchantProduct(productId, request = apiRequest) {
+  const data = await request(`/lojista/produtos/${productId}`);
+  return normalizeProductFromApi(data);
+}
+
+export async function createMerchantProduct(values, request = apiRequest) {
+  const name = (values.name || values.titulo || "").trim();
+  if (!name || name.length < 2) {
+    throw new Error("Informe o nome do produto (mínimo de 2 caracteres).");
+  }
+
+  const price = Number(values.price ?? values.preco_base);
+  if (isNaN(price) || price <= 0) {
+    throw new Error("Informe um preço de venda válido maior que zero.");
+  }
+
+  const hasPromotion =
+    values.hasPromotion ||
+    (values.sale !== undefined && values.sale !== "" && Number(values.sale) > 0) ||
+    (values.preco_promocional !== undefined && values.preco_promocional !== null && Number(values.preco_promocional) > 0);
+
+  const sale = hasPromotion
+    ? Number(values.sale ?? values.preco_promocional)
+    : null;
+
+  if (hasPromotion) {
+    if (isNaN(sale) || sale <= 0) {
+      throw new Error("Informe um preço promocional válido.");
+    }
+    if (sale >= price) {
+      throw new Error("O preço promocional deve ser menor que o preço original.");
+    }
+  }
+
+  const categoryId = values.categoryId || values.categoria_id;
+  if (!categoryId) {
+    throw new Error("Selecione uma categoria para o produto.");
+  }
+
+  let variacoes = null;
+  if (Array.isArray(values.variations) && values.variations.length > 0) {
+    variacoes = values.variations.map((v) =>
+      typeof v === "object" ? v : { tamanho: String(v), ativo: true }
+    );
+  }
+
+  const payload = {
+    categoria_id: categoryId,
+    titulo: name,
+    descricao: (values.description || values.descricao || "").trim() || null,
+    preco_base: price,
+    preco_promocional: sale,
+    foto_principal_url: values.image || values.foto_principal_url || null,
+    ativo: values.active !== undefined ? Boolean(values.active) : values.ativo !== undefined ? Boolean(values.ativo) : true,
+    variacoes,
+  };
+
+  const response = await request("/lojista/produtos", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  return normalizeProductFromApi(response);
+}
+
+export async function updateMerchantProduct(productId, values, request = apiRequest) {
+  const payload = {};
+
+  if (values.name !== undefined || values.titulo !== undefined) {
+    const name = (values.name || values.titulo || "").trim();
+    if (!name || name.length < 2) {
+      throw new Error("Informe o nome do produto (mínimo de 2 caracteres).");
+    }
+    payload.titulo = name;
+  }
+
+  if (values.price !== undefined || values.preco_base !== undefined) {
+    const price = Number(values.price ?? values.preco_base);
+    if (isNaN(price) || price <= 0) {
+      throw new Error("Informe um preço de venda válido maior que zero.");
+    }
+    payload.preco_base = price;
+  }
+
+  const hasPromotion =
+    values.hasPromotion ||
+    (values.sale !== undefined && values.sale !== "" && Number(values.sale) > 0) ||
+    (values.preco_promocional !== undefined && values.preco_promocional !== null && Number(values.preco_promocional) > 0);
+
+  if (values.sale !== undefined || values.preco_promocional !== undefined || values.hasPromotion !== undefined) {
+    const sale = hasPromotion
+      ? Number(values.sale ?? values.preco_promocional)
+      : null;
+    const currentPrice = payload.preco_base ?? Number(values.price ?? values.preco_base);
+
+    if (hasPromotion && sale !== null) {
+      if (isNaN(sale) || sale <= 0) {
+        throw new Error("Informe um preço promocional válido.");
+      }
+      if (currentPrice && sale >= currentPrice) {
+        throw new Error("O preço promocional deve ser menor que o preço original.");
+      }
+    }
+    payload.preco_promocional = sale;
+  }
+
+  if (values.categoryId !== undefined || values.categoria_id !== undefined) {
+    payload.categoria_id = values.categoryId || values.categoria_id;
+  }
+
+  if (values.description !== undefined || values.descricao !== undefined) {
+    payload.descricao = (values.description || values.descricao || "").trim() || null;
+  }
+
+  if (values.image !== undefined || values.foto_principal_url !== undefined) {
+    payload.foto_principal_url = values.image || values.foto_principal_url || null;
+  }
+
+  if (values.active !== undefined || values.ativo !== undefined) {
+    payload.ativo = values.active !== undefined ? Boolean(values.active) : Boolean(values.ativo);
+  }
+
+  if (values.variations !== undefined) {
+    payload.variacoes = Array.isArray(values.variations)
+      ? values.variations.map((v) => (typeof v === "object" ? v : { tamanho: String(v), ativo: true }))
+      : null;
+  }
+
+  const response = await request(`/lojista/produtos/${productId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+  return normalizeProductFromApi(response);
+}
+
+export async function deleteMerchantProduct(productId, request = apiRequest) {
+  return request(`/lojista/produtos/${productId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function uploadMerchantProductPhoto(file, request = apiRequest) {
+  const formData = new FormData();
+  formData.append("arquivo", file);
+
+  return request("/lojista/produtos/upload-foto", {
+    method: "POST",
+    body: formData,
+  });
+}

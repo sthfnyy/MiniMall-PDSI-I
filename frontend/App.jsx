@@ -1014,6 +1014,7 @@ export default function App() {
               update={update}
               go={go}
               notify={setToast}
+              useRealApi={Boolean(authSession?.access_token)}
             />
           ) : (
             <Empty
@@ -1045,6 +1046,7 @@ export default function App() {
               go={go}
               update={update}
               notify={setToast}
+              useRealApi={Boolean(authSession?.access_token)}
             />
           ) : (
             <Empty

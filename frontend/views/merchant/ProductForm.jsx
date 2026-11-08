@@ -12,6 +12,7 @@ import {
   Tag,
   Save,
   Store,
+  CheckCircle2,
 } from "lucide-react";
 import { Field, PageTitle } from "../../components/ui";
 import { money } from "../../services/catalog";
@@ -20,6 +21,12 @@ import {
   getStoreProducts,
   createStoreProduct,
   updateStoreProduct,
+  fetchMerchantProduct,
+  fetchMerchantCategories,
+  createMerchantProduct,
+  updateMerchantProduct,
+  uploadMerchantProductPhoto,
+  fetchMerchantStore,
 } from "../../services/merchant";
 
 const PRESETS = {
@@ -37,19 +44,41 @@ export default function ProductForm({
   go,
   update,
   notify,
+  useRealApi = false,
+  fetchProductFn = fetchMerchantProduct,
+  fetchCategoriesFn = fetchMerchantCategories,
+  createProductFn = createMerchantProduct,
+  updateProductFn = updateMerchantProduct,
+  uploadPhotoFn = uploadMerchantProductPhoto,
+  fetchStoreFn = fetchMerchantStore,
 }) {
-  const store = getMerchantStore(data, user);
   const isEdit = Boolean(productId);
+  const demoStore = getMerchantStore(data, user);
+  const [realStore, setRealStore] = useState(null);
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [realProduct, setRealProduct] = useState(null);
 
-  const existingProduct = isEdit && store
-    ? data.products.find(
-        (p) => Number(p.id) === Number(productId) && Number(p.store) === Number(store.id),
-      )
-    : null;
+  const [isLoading, setIsLoading] = useState(useRealApi);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const store = useRealApi ? (realStore || demoStore) : demoStore;
+
+  const existingDemoProduct =
+    isEdit && store && !useRealApi
+      ? data.products.find(
+          (p) =>
+            Number(p.id) === Number(productId) &&
+            Number(p.store) === Number(store.id),
+        )
+      : null;
+
+  const currentProduct = useRealApi ? realProduct : existingDemoProduct;
 
   // Form states
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [hasPromotion, setHasPromotion] = useState(false);
@@ -57,44 +86,138 @@ export default function ProductForm({
   const [image, setImage] = useState("");
   const [variations, setVariations] = useState([]);
   const [newVariation, setNewVariation] = useState("");
-  const [error, setError] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
+  const [activeStatus, setActiveStatus] = useState(true);
 
   const fileInputRef = useRef(null);
 
-  // Load existing product or defaults
+  // Initial load for real API mode
+  useEffect(() => {
+    let active = true;
+
+    if (!useRealApi) {
+      setIsLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    const promises = [
+      fetchStoreFn().catch(() => null),
+      fetchCategoriesFn().catch(() => []),
+    ];
+
+    if (isEdit && productId) {
+      promises.push(fetchProductFn(productId).catch(() => null));
+    }
+
+    Promise.all(promises)
+      .then(([storeRes, catsRes, prodRes]) => {
+        if (!active) return;
+        if (storeRes) setRealStore(storeRes);
+        setCategoriesList(catsRes || []);
+        if (prodRes) setRealProduct(prodRes);
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(err.message || "Erro ao carregar os dados.");
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [useRealApi, isEdit, productId, fetchStoreFn, fetchCategoriesFn, fetchProductFn]);
+
+  // Sync form inputs when product or categories change
   useEffect(() => {
     if (isEdit) {
-      if (existingProduct) {
-        setName(existingProduct.name || "");
-        setCategory(existingProduct.category || store?.category || data.categories?.[0] || "");
-        setDescription(existingProduct.description || "");
-        setPrice(existingProduct.price !== undefined ? String(existingProduct.price) : "");
-        const promoActive = Number(existingProduct.sale) > 0;
+      if (currentProduct) {
+        setName(currentProduct.name || currentProduct.titulo || "");
+        setCategoryId(
+          currentProduct.categoryId ||
+            currentProduct.categoria_id ||
+            categoriesList[0]?.id ||
+            data.categories?.[0] ||
+            "",
+        );
+        setDescription(currentProduct.description || currentProduct.descricao || "");
+        setPrice(
+          currentProduct.price !== undefined
+            ? String(currentProduct.price)
+            : currentProduct.preco_base !== undefined
+              ? String(currentProduct.preco_base)
+              : "",
+        );
+        const promoActive =
+          Number(currentProduct.sale) > 0 ||
+          (currentProduct.preco_promocional != null &&
+            Number(currentProduct.preco_promocional) > 0);
         setHasPromotion(promoActive);
-        setSale(promoActive ? String(existingProduct.sale) : "");
-        setImage(existingProduct.image || "");
+        setSale(
+          promoActive
+            ? String(currentProduct.sale || currentProduct.preco_promocional)
+            : "",
+        );
+        setImage(
+          currentProduct.image || currentProduct.foto_principal_url || "",
+        );
         setVariations(
-          Array.isArray(existingProduct.variations)
-            ? [...existingProduct.variations]
+          Array.isArray(currentProduct.variations)
+            ? [...currentProduct.variations]
             : [],
+        );
+        setActiveStatus(
+          currentProduct.active !== undefined
+            ? Boolean(currentProduct.active)
+            : currentProduct.ativo !== undefined
+              ? Boolean(currentProduct.ativo)
+              : true,
         );
       }
     } else {
       setName("");
-      setCategory(store?.category || data.categories?.[0] || "");
+      setCategoryId(
+        categoriesList[0]?.id ||
+          store?.category ||
+          data.categories?.[0] ||
+          "",
+      );
       setDescription("");
       setPrice("");
       setHasPromotion(false);
       setSale("");
-      setImage("/images/shirt.jpg");
+      setImage(useRealApi ? "" : "/images/shirt.jpg");
       setVariations([]);
+      setActiveStatus(true);
     }
     setError("");
-  }, [productId, isEdit, existingProduct, store, data.categories]);
+  }, [
+    productId,
+    isEdit,
+    currentProduct,
+    store,
+    categoriesList,
+    data.categories,
+    useRealApi,
+  ]);
+
+  const categoriesOptions =
+    useRealApi && categoriesList.length > 0
+      ? categoriesList.map((c) => ({ id: c.id, name: c.name || c.nome }))
+      : (data.categories || []).map((cat) => ({ id: cat, name: cat }));
+
+  const currentCategoryObj = categoriesOptions.find(
+    (c) => c.id === categoryId || c.name === categoryId,
+  );
+  const currentCategoryName = currentCategoryObj?.name || categoryId;
 
   // Handle image upload from computer/phone
-  function handleImageUpload(e) {
+  async function handleImageUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -108,15 +231,30 @@ export default function ProductForm({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setImage(event.target.result);
+    if (useRealApi) {
+      setIsUploading(true);
       setError("");
-    };
-    reader.onerror = () => {
-      setError("Falha ao ler o arquivo de imagem selecionado.");
-    };
-    reader.readAsDataURL(file);
+      try {
+        const res = await uploadPhotoFn(file);
+        if (res?.url) {
+          setImage(res.url);
+        }
+      } catch (err) {
+        setError(err.message || "Falha ao enviar a imagem para o servidor.");
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImage(event.target.result);
+        setError("");
+      };
+      reader.onerror = () => {
+        setError("Falha ao ler o arquivo de imagem selecionado.");
+      };
+      reader.readAsDataURL(file);
+    }
   }
 
   // Variations management
@@ -140,13 +278,14 @@ export default function ProductForm({
   // Calculate promotion stats
   const numPrice = Number(price) || 0;
   const numSale = Number(sale) || 0;
-  const discountDiff = hasPromotion && numPrice > 0 && numSale > 0 ? numPrice - numSale : 0;
+  const discountDiff =
+    hasPromotion && numPrice > 0 && numSale > 0 ? numPrice - numSale : 0;
   const discountPercent =
     hasPromotion && numPrice > 0 && numSale > 0 && discountDiff > 0
       ? Math.round((discountDiff / numPrice) * 100)
       : 0;
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
@@ -174,28 +313,65 @@ export default function ProductForm({
     setIsSaving(true);
 
     try {
-      const payload = {
-        name: name.trim(),
-        description: description.trim(),
-        price: numPrice,
-        sale: hasPromotion ? numSale : 0,
-        category: category.trim(),
-        variations,
-        image: image || "/images/shirt.jpg",
-      };
+      if (useRealApi) {
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          price: numPrice,
+          hasPromotion,
+          sale: hasPromotion ? numSale : null,
+          categoryId: categoryId || categoriesOptions[0]?.id,
+          image: image || null,
+          variations,
+          active: activeStatus,
+        };
 
-      if (isEdit) {
-        update((draft) => {
-          updateStoreProduct(draft, user, Number(productId), payload);
-          return draft;
-        });
-        if (notify) notify(`Produto "${payload.name}" atualizado com sucesso!`);
+        let resultProduct;
+        if (isEdit) {
+          resultProduct = await updateProductFn(productId, payload);
+          if (notify) notify(`Produto "${payload.name}" atualizado com sucesso!`);
+        } else {
+          resultProduct = await createProductFn(payload);
+          if (notify) notify(`Produto "${payload.name}" cadastrado com sucesso!`);
+        }
+
+        if (update && resultProduct) {
+          update((draft) => {
+            const index = draft.products.findIndex(
+              (p) => String(p.id) === String(resultProduct.id),
+            );
+            if (index !== -1) {
+              draft.products[index] = resultProduct;
+            } else {
+              draft.products.unshift(resultProduct);
+            }
+            return draft;
+          });
+        }
       } else {
-        update((draft) => {
-          createStoreProduct(draft, user, payload);
-          return draft;
-        });
-        if (notify) notify(`Produto "${payload.name}" cadastrado com sucesso!`);
+        const payload = {
+          name: name.trim(),
+          description: description.trim(),
+          price: numPrice,
+          sale: hasPromotion ? numSale : 0,
+          category: currentCategoryName,
+          variations,
+          image: image || "/images/shirt.jpg",
+        };
+
+        if (isEdit) {
+          update((draft) => {
+            updateStoreProduct(draft, user, Number(productId), payload);
+            return draft;
+          });
+          if (notify) notify(`Produto "${payload.name}" atualizado com sucesso!`);
+        } else {
+          update((draft) => {
+            createStoreProduct(draft, user, payload);
+            return draft;
+          });
+          if (notify) notify(`Produto "${payload.name}" cadastrado com sucesso!`);
+        }
       }
 
       go("lojista/produtos");
@@ -204,6 +380,16 @@ export default function ProductForm({
     } finally {
       setIsSaving(false);
     }
+  }
+
+  if (isLoading) {
+    return (
+      <section className="consumer-page merchant-page">
+        <div className="merchant-loading-state" role="status">
+          <p>Carregando dados do produto…</p>
+        </div>
+      </section>
+    );
   }
 
   if (!store) {
@@ -229,7 +415,7 @@ export default function ProductForm({
     );
   }
 
-  if (isEdit && !existingProduct) {
+  if (isEdit && !currentProduct && !useRealApi) {
     return (
       <section className="consumer-page merchant-page">
         <button
@@ -268,7 +454,11 @@ export default function ProductForm({
 
       <PageTitle
         eyebrow="PAINEL DO LOJISTA"
-        title={isEdit ? `Editar Produto: ${existingProduct?.name}` : "Cadastrar Novo Produto"}
+        title={
+          isEdit
+            ? `Editar Produto: ${currentProduct?.name || currentProduct?.titulo || ""}`
+            : "Cadastrar Novo Produto"
+        }
         text={
           isEdit
             ? "Atualize as informações, fotos, preços e características do produto."
@@ -287,7 +477,11 @@ export default function ProductForm({
 
             <div className="product-upload-container">
               <div className="product-upload-preview">
-                {image ? (
+                {isUploading ? (
+                  <div className="product-upload-placeholder">
+                    <span>Enviando foto…</span>
+                  </div>
+                ) : image ? (
                   <img
                     src={image}
                     alt="Pré-visualização do produto"
@@ -310,6 +504,7 @@ export default function ProductForm({
                   style={{ display: "none" }}
                   accept="image/png, image/jpeg, image/webp"
                   onChange={handleImageUpload}
+                  disabled={isUploading || isSaving}
                 />
 
                 <div className="product-upload-actions">
@@ -317,9 +512,14 @@ export default function ProductForm({
                     type="button"
                     className="primary"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading || isSaving}
                   >
                     <Upload size={16} />
-                    {image ? "Trocar foto" : "Fazer upload de foto"}
+                    {isUploading
+                      ? "Enviando…"
+                      : image
+                        ? "Trocar foto"
+                        : "Fazer upload de foto"}
                   </button>
 
                   {image && (
@@ -327,6 +527,7 @@ export default function ProductForm({
                       type="button"
                       className="secondary"
                       onClick={() => setImage("")}
+                      disabled={isUploading || isSaving}
                     >
                       <Trash2 size={16} />
                       Remover foto
@@ -340,10 +541,15 @@ export default function ProductForm({
 
                 <input
                   type="text"
-                  value={image.startsWith("data:") ? "(Imagem enviada via upload)" : image}
+                  value={
+                    image.startsWith("data:")
+                      ? "(Imagem enviada via upload)"
+                      : image
+                  }
                   onChange={(e) => setImage(e.target.value)}
                   placeholder="Ou cole a URL da imagem (ex: /images/shirt.jpg ou https://...)"
                   className="product-url-input"
+                  disabled={isUploading || isSaving}
                 />
               </div>
             </div>
@@ -370,13 +576,13 @@ export default function ProductForm({
 
               <Field label="Categoria *">
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
                   required
                 >
-                  {(data.categories || []).map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
+                  {categoriesOptions.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
                     </option>
                   ))}
                 </select>
@@ -391,6 +597,19 @@ export default function ProductForm({
                 placeholder="Descreva detalhes como material, caimento, cuidados e diferenciais..."
               />
             </Field>
+
+            <div className="product-status-toggle">
+              <label className="promotion-checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={activeStatus}
+                  onChange={(e) => setActiveStatus(e.target.checked)}
+                />
+                <span>
+                  <CheckCircle2 size={16} /> Produto ativo na vitrine (visível aos clientes)
+                </span>
+              </label>
+            </div>
           </div>
 
           {/* SEÇÃO 3: PREÇO E PROMOÇÃO */}
@@ -501,11 +720,11 @@ export default function ProductForm({
             </div>
 
             {/* Sugestões rápidas de acordo com a categoria */}
-            {PRESETS[category] && (
+            {PRESETS[currentCategoryName] && (
               <div className="variation-presets">
                 <span className="muted">Sugestões rápidas:</span>
                 <div className="preset-chips">
-                  {PRESETS[category].map((preset) => (
+                  {PRESETS[currentCategoryName].map((preset) => (
                     <button
                       key={preset}
                       type="button"
@@ -555,12 +774,16 @@ export default function ProductForm({
               type="button"
               className="secondary"
               onClick={() => go("lojista/produtos")}
-              disabled={isSaving}
+              disabled={isSaving || isUploading}
             >
               Cancelar
             </button>
 
-            <button type="submit" className="primary" disabled={isSaving}>
+            <button
+              type="submit"
+              className="primary"
+              disabled={isSaving || isUploading}
+            >
               <Save size={16} />
               {isSaving
                 ? "Salvando…"
@@ -574,4 +797,3 @@ export default function ProductForm({
     </section>
   );
 }
-
