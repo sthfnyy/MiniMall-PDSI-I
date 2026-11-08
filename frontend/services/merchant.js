@@ -1,3 +1,5 @@
+import { apiRequest } from "./api.js";
+
 const PALETTE = [
   "#ede4d7",
   "#dce8ed",
@@ -32,10 +34,39 @@ export function getMerchantStore(data, user) {
   );
 }
 
+export function parseAddress(addressString = "") {
+  const raw = (addressString || "").trim();
+  if (!raw) {
+    return {
+      endereco_logradouro: "",
+      endereco_cidade: "Picos",
+      endereco_uf: "PI",
+    };
+  }
+
+  const match = raw.match(/[,–—\-]?\s*([^,–—\-/]+)\s*[\-–—/]\s*([a-zA-Z]{2})\s*$/);
+  if (match) {
+    const cidade = match[1].trim();
+    const uf = match[2].trim().toUpperCase();
+    const prefix = raw.slice(0, raw.lastIndexOf(match[0])).trim().replace(/[,–—\-]+$/, "").trim();
+    return {
+      endereco_logradouro: prefix || raw,
+      endereco_cidade: cidade || "Picos",
+      endereco_uf: uf.length === 2 ? uf : "PI",
+    };
+  }
+
+  return {
+    endereco_logradouro: raw,
+    endereco_cidade: "Picos",
+    endereco_uf: "PI",
+  };
+}
+
 export function validateStoreData(values = {}) {
-  const name = (values.name || "").trim();
+  const name = (values.name || values.nome_loja || "").trim();
   const whatsapp = (values.whatsapp || "").trim();
-  const address = (values.address || "").trim();
+  const address = (values.address || values.endereco_logradouro || "").trim();
 
   if (!name || name.length < 2) {
     throw new Error("Informe o nome da loja (mínimo de 2 caracteres).");
@@ -49,15 +80,145 @@ export function validateStoreData(values = {}) {
     throw new Error("Informe a localização ou endereço da loja.");
   }
 
+  let hours = "";
+  if (typeof values.hours === "string") {
+    hours = values.hours.trim();
+  } else if (values.horario_funcionamento && typeof values.horario_funcionamento === "object") {
+    hours = (values.horario_funcionamento.texto || values.horario_funcionamento.descricao || "").trim();
+  }
+
   return {
     name,
-    description: (values.description || "").trim(),
+    description: (values.description || values.descricao || "").trim(),
     whatsapp,
     address,
     category: values.category?.trim() || "",
-    hours: (values.hours || "").trim(),
+    hours,
     instagram: (values.instagram || "").trim(),
   };
+}
+
+export function normalizeStoreFromApi(apiStore) {
+  if (!apiStore) return null;
+
+  let address = apiStore.endereco_logradouro || "";
+  if (apiStore.endereco_cidade && apiStore.endereco_uf) {
+    const cityState = `${apiStore.endereco_cidade} – ${apiStore.endereco_uf}`;
+    if (!address) {
+      address = cityState;
+    } else if (!address.toLowerCase().includes(apiStore.endereco_cidade.toLowerCase())) {
+      address = `${address}, ${cityState}`;
+    }
+  }
+
+  let hours = "";
+  if (typeof apiStore.horario_funcionamento === "string") {
+    hours = apiStore.horario_funcionamento;
+  } else if (apiStore.horario_funcionamento && typeof apiStore.horario_funcionamento === "object") {
+    hours =
+      apiStore.horario_funcionamento.texto ||
+      apiStore.horario_funcionamento.descricao ||
+      "";
+  }
+
+  return {
+    ...apiStore,
+    id: apiStore.id,
+    name: apiStore.nome_loja || apiStore.name || "",
+    nome_loja: apiStore.nome_loja || apiStore.name || "",
+    description: apiStore.descricao ?? apiStore.description ?? "",
+    descricao: apiStore.descricao ?? apiStore.description ?? "",
+    whatsapp: apiStore.whatsapp || "",
+    address,
+    hours,
+    instagram: apiStore.instagram || "",
+    facebook: apiStore.facebook || "",
+    status: apiStore.status || "pendente",
+    motivo_rejeicao: apiStore.motivo_rejeicao || null,
+    initials: generateInitials(apiStore.nome_loja || apiStore.name || ""),
+    color: generateColor(apiStore.id || 1),
+  };
+}
+
+export async function fetchMerchantStore(request = apiRequest) {
+  try {
+    const data = await request("/lojista/loja");
+    return normalizeStoreFromApi(data);
+  } catch (err) {
+    if (
+      err.status === 404 ||
+      err.message?.includes("404") ||
+      err.message?.includes("não encontrada")
+    ) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+export async function createMerchantStore(values, request = apiRequest) {
+  const clean = validateStoreData(values);
+  const addressParts = parseAddress(clean.address);
+
+  const payload = {
+    nome_loja: clean.name,
+    descricao: clean.description || null,
+    endereco_logradouro: values.endereco_logradouro || addressParts.endereco_logradouro || null,
+    endereco_numero: values.endereco_numero || null,
+    endereco_bairro: values.endereco_bairro || null,
+    endereco_cidade: values.endereco_cidade || addressParts.endereco_cidade || "Picos",
+    endereco_uf: (values.endereco_uf || addressParts.endereco_uf || "PI").toUpperCase(),
+    endereco_cep: values.endereco_cep || null,
+    horario_funcionamento: clean.hours ? { descricao: clean.hours } : null,
+    whatsapp: clean.whatsapp,
+    instagram: clean.instagram || null,
+    facebook: values.facebook || null,
+    logo_url: values.logo_url || null,
+  };
+
+  const response = await request("/lojista/loja", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+  return normalizeStoreFromApi(response);
+}
+
+export async function updateMerchantStore(values, request = apiRequest) {
+  const clean = validateStoreData(values);
+  const addressParts = parseAddress(clean.address);
+
+  const payload = {
+    nome_loja: clean.name,
+    descricao: clean.description || null,
+    endereco_logradouro: values.endereco_logradouro || addressParts.endereco_logradouro || null,
+    endereco_cidade: values.endereco_cidade || addressParts.endereco_cidade || "Picos",
+    endereco_uf: (values.endereco_uf || addressParts.endereco_uf || "PI").toUpperCase(),
+    horario_funcionamento: clean.hours ? { descricao: clean.hours } : null,
+    whatsapp: clean.whatsapp,
+    instagram: clean.instagram || null,
+  };
+
+  if (values.endereco_numero !== undefined) payload.endereco_numero = values.endereco_numero || null;
+  if (values.endereco_bairro !== undefined) payload.endereco_bairro = values.endereco_bairro || null;
+  if (values.endereco_cep !== undefined) payload.endereco_cep = values.endereco_cep || null;
+  if (values.facebook !== undefined) payload.facebook = values.facebook || null;
+  if (values.logo_url !== undefined) payload.logo_url = values.logo_url || null;
+
+  const response = await request("/lojista/loja", {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+
+  return normalizeStoreFromApi(response);
+}
+
+export async function requestStoreApproval(request = apiRequest) {
+  const response = await request("/lojista/loja/solicitar-aprovacao", {
+    method: "POST",
+  });
+
+  return normalizeStoreFromApi(response);
 }
 
 export function saveMerchantStore(data, user, values) {
@@ -253,4 +414,3 @@ export function createStoreProduct(data, user, values = {}) {
   data.products.push(newProduct);
   return { data, product: newProduct };
 }
-

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .models import StatusLoja, TipoTransacaoPontos, UserRole
 
@@ -223,3 +223,247 @@ class DashboardOut(BaseModel):
     total_avaliacoes: int
     total_visualizacoes: int
     engajamento_proxy: int
+
+
+
+class LojaDetailOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    lojista_id: uuid.UUID
+    nome_loja: str
+    descricao: str | None = None
+    endereco_logradouro: str | None = None
+    endereco_numero: str | None = None
+    endereco_bairro: str | None = None
+    endereco_cidade: str
+    endereco_uf: str
+    endereco_cep: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    horario_funcionamento: dict | None = None
+    whatsapp: str
+    instagram: str | None = None
+    facebook: str | None = None
+    logo_url: str | None = None
+    status: StatusLoja
+    motivo_rejeicao: str | None = None
+    aprovado_por: uuid.UUID | None = None
+    aprovado_em: datetime | None = None
+    criado_em: datetime
+    atualizado_em: datetime
+
+
+class LojaCreateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nome_loja: str
+    descricao: str | None = None
+    endereco_logradouro: str | None = None
+    endereco_numero: str | None = None
+    endereco_bairro: str | None = None
+    endereco_cidade: str
+    endereco_uf: str = Field(min_length=2, max_length=2)
+    endereco_cep: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    horario_funcionamento: dict | None = None
+    whatsapp: str
+    instagram: str | None = None
+    facebook: str | None = None
+    logo_url: str | None = None
+
+    @field_validator("nome_loja")
+    @classmethod
+    def validar_nome_loja(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("nome_loja não pode ser vazio")
+        return v.strip()
+
+    @field_validator("whatsapp")
+    @classmethod
+    def validar_whatsapp(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("whatsapp não pode ser vazio")
+        return v.strip()
+
+    @field_validator("endereco_cidade")
+    @classmethod
+    def validar_cidade(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("endereco_cidade não pode ser vazio")
+        return v.strip()
+
+    @field_validator("endereco_uf")
+    @classmethod
+    def validar_uf(cls, v: str) -> str:
+        if not v or len(v.strip()) != 2:
+            raise ValueError("endereco_uf deve conter exatamente 2 caracteres")
+        return v.strip().upper()
+
+
+class LojaUpdateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    nome_loja: str | None = None
+    descricao: str | None = None
+    endereco_logradouro: str | None = None
+    endereco_numero: str | None = None
+    endereco_bairro: str | None = None
+    endereco_cidade: str | None = None
+    endereco_uf: str | None = Field(default=None, min_length=2, max_length=2)
+    endereco_cep: str | None = None
+    latitude: Decimal | None = None
+    longitude: Decimal | None = None
+    horario_funcionamento: dict | None = None
+    whatsapp: str | None = None
+    instagram: str | None = None
+    facebook: str | None = None
+    logo_url: str | None = None
+
+    @field_validator("nome_loja")
+    @classmethod
+    def validar_nome_loja(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("nome_loja não pode ser vazio")
+            return v.strip()
+        return v
+
+    @field_validator("whatsapp")
+    @classmethod
+    def validar_whatsapp(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("whatsapp não pode ser vazio")
+            return v.strip()
+        return v
+
+    @field_validator("endereco_cidade")
+    @classmethod
+    def validar_cidade(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not v.strip():
+                raise ValueError("endereco_cidade não pode ser vazio")
+            return v.strip()
+        return v
+
+    @field_validator("endereco_uf")
+    @classmethod
+    def validar_uf(cls, v: str | None) -> str | None:
+        if v is not None:
+            if len(v.strip()) != 2:
+                raise ValueError("endereco_uf deve conter exatamente 2 caracteres")
+            return v.strip().upper()
+        return v
+
+
+class VariacaoProdutoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    tamanho: str | None = None
+    cor: str | None = None
+    preco: Decimal | None = Field(default=None, ge=0)
+    sku: str | None = None
+    ativo: bool = True
+
+
+class VariacaoProdutoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    produto_id: uuid.UUID
+    tamanho: str | None = None
+    cor: str | None = None
+    preco: Decimal | None = None
+    sku: str | None = None
+    ativo: bool = True
+
+
+class ProdutoFotoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    produto_id: uuid.UUID
+    url: str
+    ordem: int
+    criado_em: datetime
+
+
+class ProdutoLojistaCreateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    categoria_id: uuid.UUID
+    titulo: str
+    descricao: str | None = None
+    preco_base: Decimal = Field(ge=0)
+    preco_promocional: Decimal | None = None
+    foto_principal_url: str | None = None
+    ativo: bool = True
+    variacoes: list[VariacaoProdutoIn] | None = None
+
+    @field_validator("titulo")
+    @classmethod
+    def validar_titulo(cls, v: str) -> str:
+        if not v or not v.strip() or len(v.strip()) < 2:
+            raise ValueError("O título do produto deve ter no mínimo 2 caracteres")
+        return v.strip()
+
+    @model_validator(mode="after")
+    def validar_precos(self):
+        if self.preco_promocional is not None:
+            if self.preco_promocional < 0:
+                raise ValueError("O preço promocional não pode ser negativo")
+            if self.preco_promocional >= self.preco_base:
+                raise ValueError("O preço promocional deve ser menor que o preço base")
+        return self
+
+
+class ProdutoLojistaUpdateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    categoria_id: uuid.UUID | None = None
+    titulo: str | None = None
+    descricao: str | None = None
+    preco_base: Decimal | None = Field(default=None, ge=0)
+    preco_promocional: Decimal | None = None
+    foto_principal_url: str | None = None
+    ativo: bool | None = None
+    variacoes: list[VariacaoProdutoIn] | None = None
+
+    @field_validator("titulo")
+    @classmethod
+    def validar_titulo(cls, v: str | None) -> str | None:
+        if v is not None:
+            if not v.strip() or len(v.strip()) < 2:
+                raise ValueError("O título do produto deve ter no mínimo 2 caracteres")
+            return v.strip()
+        return v
+
+    @model_validator(mode="after")
+    def validar_precos(self):
+        if self.preco_promocional is not None and self.preco_base is not None:
+            if self.preco_promocional < 0:
+                raise ValueError("O preço promocional não pode ser negativo")
+            if self.preco_promocional >= self.preco_base:
+                raise ValueError("O preço promocional deve ser menor que o preço base")
+        return self
+
+
+class ProdutoLojistaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    loja_id: uuid.UUID
+    categoria_id: uuid.UUID
+    categoria_nome: str | None = None
+    titulo: str
+    descricao: str | None = None
+    preco_base: Decimal
+    preco_promocional: Decimal | None = None
+    foto_principal_url: str | None = None
+    ativo: bool
+    criado_em: datetime
+    atualizado_em: datetime
+    fotos: list[ProdutoFotoOut] = Field(default_factory=list)
+    variacoes: list[VariacaoProdutoOut] = Field(default_factory=list)
