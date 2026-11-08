@@ -34,7 +34,12 @@ import { Modal, Empty } from "./components/ui";
 
 import { money, price } from "./services/catalog";
 import { loadData, saveData } from "./services/storage";
-import { saveConsumerProfile } from "./services/profile.js";
+import { getConsumerCatalog, isRealCatalogId } from "./services/catalogApi.js";
+import {
+  addConsumerFavorite,
+  deleteConsumerFavorite,
+  listConsumerFavorites,
+} from "./services/favorites.js";
 import {
   createConsumerReview,
   isBackendStoreId,
@@ -46,6 +51,7 @@ import {
   observeAuthChanges,
   signOut,
   isConsumerRoute,
+  getAuthenticatedRoute,
 } from "./services/auth";
 
 const emptyFilters = {
@@ -70,6 +76,11 @@ export default function App() {
   const [filters, setFilters] = useState(emptyFilters);
   const [toast, setToast] = useState("");
   const [contact, setContact] = useState(null);
+  const [realCatalog, setRealCatalog] = useState(null);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState("");
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
+  const [realFavoriteIds, setRealFavoriteIds] = useState([]);
 
   
   const currentUser = authUser
@@ -163,6 +174,47 @@ export default function App() {
   }, [authSession?.access_token]);
 
   useEffect(() => {
+    let active = true;
+    const isRealConsumer = Boolean(authSession?.access_token) && backendProfile?.role === "consumidor";
+
+    if (!isRealConsumer) {
+      setRealCatalog(null);
+      setCatalogLoading(Boolean(authSession?.access_token) && !backendProfile);
+      setCatalogError("");
+      setRealFavoriteIds([]);
+      return () => {
+        active = false;
+      };
+    }
+
+    setRealCatalog(null);
+    setCatalogLoading(true);
+    setCatalogError("");
+    getConsumerCatalog()
+      .then((catalog) => {
+        if (active) setRealCatalog(catalog);
+      })
+      .catch((error) => {
+        if (active) setCatalogError(error.message || "Não foi possível carregar o catálogo.");
+      })
+      .finally(() => {
+        if (active) setCatalogLoading(false);
+      });
+
+    listConsumerFavorites()
+      .then((favorites) => {
+        if (active) setRealFavoriteIds(favorites.map((favorite) => favorite.produto.id));
+      })
+      .catch(() => {
+        if (active) setRealFavoriteIds([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authSession?.access_token, backendProfile, catalogAttempt]);
+
+  useEffect(() => {
     if (authLoading) return;
 
     if (!currentUser && isConsumerRoute(route)) {
@@ -171,15 +223,7 @@ export default function App() {
     }
 
     if (currentUser && route === "login") {
-      if (currentUser.role === "admin") {
-        go("admin");
-      } else if (currentUser.role === "consumidor") {
-        go("consumidor");
-      } else if (currentUser.role === "lojista") {
-        go("lojista");
-      } else {
-        go("inicio");
-      }
+      go(getAuthenticatedRoute(currentUser.role));
     }
   }, [authLoading, currentUser, route]);
 
@@ -249,11 +293,23 @@ export default function App() {
   const update = (fn) =>
     setData((prev) => fn(structuredClone(prev)));
 
-  const approved = data.stores.filter(
+  const useRealCatalog = Boolean(authSession?.access_token) && backendProfile?.role === "consumidor";
+  const awaitingRealProfile = Boolean(authSession?.access_token) && !backendProfile;
+  const catalogData = useRealCatalog || awaitingRealProfile
+    ? {
+        ...data,
+        stores: realCatalog?.stores || [],
+        products: realCatalog?.products || [],
+        categories: realCatalog?.categories || [],
+        reviews: [],
+      }
+    : data;
+
+  const approved = catalogData.stores.filter(
     (s) => s.status === "aprovada",
   );
 
-  const products = data.products.filter(
+  const products = catalogData.products.filter(
     (p) =>
       !p.deleted &&
       approved.some((s) => s.id === p.store),
@@ -278,9 +334,7 @@ export default function App() {
     go(`loja/${id}`);
 
   const isFavorite = (productId) => {
-    if (authSession?.access_token) {
-      return false;
-    }
+    if (useRealCatalog) return realFavoriteIds.includes(productId);
 
     if (!currentUser || currentUser.role !== "consumidor") {
       return false;
@@ -301,7 +355,7 @@ export default function App() {
     );
   };
 
-  const toggleFavorite = (product) => {
+  const toggleFavorite = async (product) => {
     if (!currentUser || currentUser.role !== "consumidor") {
       setToast(
         "Entre como consumidor para adicionar favoritos.",
@@ -311,10 +365,25 @@ export default function App() {
       return;
     }
 
-    if (authSession?.access_token) {
-      setToast(
-        "Favoritos reais estarão disponíveis quando o catálogo usar produtos da API.",
-      );
+    if (useRealCatalog) {
+      if (!isRealCatalogId(product.id)) {
+        setToast("Este produto de demonstração não pode ser enviado à API.");
+        return;
+      }
+
+      try {
+        if (realFavoriteIds.includes(product.id)) {
+          await deleteConsumerFavorite(product.id);
+          setRealFavoriteIds((ids) => ids.filter((id) => id !== product.id));
+          setToast(`"${product.name}" removido dos favoritos.`);
+        } else {
+          await addConsumerFavorite(product.id);
+          setRealFavoriteIds((ids) => [...ids, product.id]);
+          setToast(`"${product.name}" adicionado aos favoritos.`);
+        }
+      } catch (error) {
+        setToast(error.message);
+      }
       return;
     }
 
@@ -374,7 +443,7 @@ export default function App() {
     <StoreCard
       key={s.id}
       store={s}
-      data={data}
+      data={catalogData}
       onStore={onStore}
     />
   );
@@ -402,7 +471,7 @@ export default function App() {
 
   const currentStore =
     contact &&
-    data.stores.find(
+    catalogData.stores.find(
       (s) => s.id === contact.store,
     );
 
@@ -544,6 +613,18 @@ export default function App() {
           route === "inicio" ? "home-main" : ""
         }
       >
+        {(useRealCatalog || awaitingRealProfile) && catalogLoading && (
+          <p aria-live="polite">Carregando catálogo...</p>
+        )}
+        {useRealCatalog && catalogError && (
+          <div className="empty" role="alert">
+            <h2>Não foi possível carregar o catálogo</h2>
+            <p>{catalogError}</p>
+            <button className="primary" onClick={() => setCatalogAttempt((value) => value + 1)}>
+              Tentar novamente
+            </button>
+          </div>
+        )}
         {route === "inicio" && (
           <Home
             products={products}
@@ -559,12 +640,13 @@ export default function App() {
             }}
             onStores={() => go("lojas")}
             storeCard={storeCard}
+            useRealCatalog={useRealCatalog}
           />
         )}
 
         {route === "explorar" && (
           <Catalog
-            data={data}
+            data={catalogData}
             filters={filters}
             setFilters={setFilters}
             onProduct={onProduct}
@@ -589,7 +671,7 @@ export default function App() {
         {store && (
           <StorePage
             store={store}
-            data={data}
+            data={catalogData}
             onProduct={onProduct}
             onStore={onStore}
             go={go}
@@ -605,10 +687,10 @@ export default function App() {
         {product && (
           <ProductDetail
             product={product}
-            store={data.stores.find(
+            store={catalogData.stores.find(
               (s) => s.id === product.store,
             )}
-            data={data}
+            data={catalogData}
             go={go}
             contact={() => setContact(product)}
             isFavorite={isFavorite(product.id)}
@@ -723,7 +805,7 @@ export default function App() {
           (currentUser?.role === "consumidor" ? (
             <ConsumerFavorites
               user={currentUser}
-              data={data}
+              data={catalogData}
               products={products.filter((p) => isFavorite(p.id))}
               onProduct={onProduct}
               onStore={onStore}
