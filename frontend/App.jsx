@@ -35,6 +35,7 @@ import StoreSettings from "./views/merchant/StoreSettings";
 import ProductList from "./views/merchant/ProductList";
 import ProductForm from "./views/merchant/ProductForm";
 import StoreReviews from "./views/merchant/StoreReviews";
+import PurchaseIntents from "./views/merchant/PurchaseIntents";
 
 import StoreCard from "./components/StoreCard";
 import { Modal, Empty } from "./components/ui";
@@ -488,6 +489,7 @@ export default function App() {
           ["lojista", "Minha loja", Store],
           ["lojista/produtos", "Meus produtos", Package],
           ["lojista/avaliacoes", "Avaliações", Star],
+          ["lojista/intencoes-compra", "Intenções de contato", MessageCircle],
         ]
       : []),
 
@@ -1143,6 +1145,21 @@ export default function App() {
             />
           ))}
 
+        {route === "lojista/intencoes-compra" &&
+          (currentUser?.role === "lojista" ? (
+            <PurchaseIntents
+              go={go}
+              notify={setToast}
+              useRealApi={Boolean(authSession?.access_token)}
+            />
+          ) : (
+            <Empty
+              title="Acesso restrito"
+              text="Entre com uma conta de lojista para consultar as intenções de contato."
+              action={<button className="primary" onClick={() => go("login")}>Entrar</button>}
+            />
+          ))}
+
         {/* ROTA NÃO ENCONTRADA */}
         {![
           "inicio",
@@ -1159,6 +1176,7 @@ export default function App() {
           "lojista/produtos",
           "lojista/produtos/novo",
           "lojista/avaliacoes",
+          "lojista/intencoes-compra",
         ].includes(route) &&
           !route.startsWith("lojista/produtos/editar/") &&
           !product &&
