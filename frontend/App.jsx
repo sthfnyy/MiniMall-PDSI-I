@@ -722,7 +722,10 @@ export default function App() {
               go={go}
               onRegister={(u) =>
                 update((d) => {
-                  d.users.push(u);
+                  const toPush = u.user || u;
+                  if (toPush?.id) {
+                    d.users.push(toPush);
+                  }
                   return d;
                 })
               }

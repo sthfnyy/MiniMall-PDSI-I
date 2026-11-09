@@ -84,19 +84,82 @@ export async function signIn(users, email, password, client) {
   return user;
 }
 
-export async function signUp(users, values) {
+export async function signUp(users, values, client) {
   const email = values.email.trim().toLowerCase();
-  if (users.some((u) => u.email.toLowerCase() === email))
+  const role = values.role;
+  const name = values.name.trim();
+
+  if (users?.some((u) => u.email.toLowerCase() === email))
     throw new Error("Este e-mail já está cadastrado.");
-  if (!["consumidor", "lojista"].includes(values.role))
+  if (!["consumidor", "lojista"].includes(role))
     throw new Error("Selecione um perfil válido.");
   if (values.password.length < 8)
     throw new Error("A senha deve ter pelo menos 8 caracteres.");
+
+  // Se um client foi passado explicitamente (ex: em testes unitários)
+  if (client !== undefined) {
+    const { data, error } = await client.auth.signUp({
+      email,
+      password: values.password,
+      options: {
+        data: { nome_completo: name, role },
+      },
+    });
+    if (error) throw new Error(error.message || "Não foi possível cadastrar.");
+    return {
+      user: data.user,
+      session: data.session,
+      accessToken: data.session?.access_token,
+    };
+  }
+
+  // Se o Supabase estiver configurado com variáveis de ambiente
+  if (isSupabaseConfigured()) {
+    const apiUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+    try {
+      const response = await fetch(`${apiUrl}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email,
+          password: values.password,
+          role,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Não foi possível criar a conta.");
+      }
+
+      const result = await response.json();
+
+      // Sincroniza sessão no cliente Supabase se disponível
+      if (result.session && result.accessToken) {
+        try {
+          const supabase = getSupabaseClient();
+          await supabase.auth.setSession({
+            access_token: result.accessToken,
+            refresh_token: result.session.refresh_token,
+          });
+        } catch {}
+      }
+
+      return result;
+    } catch (err) {
+      if (err.message && !err.message.includes("Failed to fetch")) {
+        throw err;
+      }
+    }
+  }
+
+  // Autenticação local / fallback de demonstração (testes unitários e sem backend)
   const user = {
     id: "user-" + crypto.randomUUID(),
-    name: values.name.trim(),
+    name,
     email,
-    role: values.role,
+    role,
     status: "Ativo",
   };
   const salt = crypto.randomUUID();
