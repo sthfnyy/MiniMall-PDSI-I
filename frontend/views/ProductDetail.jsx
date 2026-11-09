@@ -14,6 +14,7 @@ export default function ProductDetail({
   store: s,
   go,
   contact,
+  contactLoading = false,
   isFavorite = false,
   onToggleFavorite,
 }) {
@@ -73,9 +74,14 @@ export default function ProductDetail({
             ))}
           </div>
           <small>Consulte a disponibilidade com a loja.</small>
-          <button className="primary whatsapp full" onClick={contact}>
+          <button
+            className="primary whatsapp full"
+            onClick={contact}
+            disabled={contactLoading}
+            aria-busy={contactLoading}
+          >
             <MessageCircle size={20} />
-            Conversar pelo WhatsApp
+            {contactLoading ? "Registrando contato..." : "Conversar pelo WhatsApp"}
             <ArrowUpRight size={18} />
           </button>
           <div className="contact-note">

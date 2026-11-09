@@ -1,5 +1,10 @@
-import { whatsappLink } from "./services/contact";
-import React, { useState, useEffect } from "react";
+import {
+  createSingleFlightRunner,
+  purchaseIntentErrorMessage,
+  startPurchaseContact,
+  whatsappLink,
+} from "./services/contact";
+import React, { useState, useEffect, useRef } from "react";
 import {
   House,
   Search,
@@ -80,6 +85,11 @@ export default function App() {
   const [filters, setFilters] = useState(emptyFilters);
   const [toast, setToast] = useState("");
   const [contact, setContact] = useState(null);
+  const [contactLoading, setContactLoading] = useState(false);
+  const contactRunner = useRef(null);
+  if (!contactRunner.current) {
+    contactRunner.current = createSingleFlightRunner();
+  }
   const [realCatalog, setRealCatalog] = useState(null);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState("");
@@ -492,6 +502,40 @@ export default function App() {
       (s) => s.id === contact.store,
     );
 
+  const handleProductContact = (selectedProduct, selectedStore) =>
+    contactRunner.current(async () => {
+      if (!currentUser || currentUser.role !== "consumidor") {
+        setToast("Entre com uma conta de consumidor para falar com a loja.");
+        go("login");
+        return;
+      }
+
+      if (!useRealCatalog) {
+        setContact(selectedProduct);
+        return;
+      }
+
+      setContactLoading(true);
+      setToast("");
+      try {
+        const result = await startPurchaseContact({
+          product: {
+            ...selectedProduct,
+            priceLabel: money(price(selectedProduct)),
+          },
+          store: selectedStore,
+          origin: location.origin,
+        });
+        if (result.status === "missing_whatsapp") {
+          setContact(selectedProduct);
+        }
+      } catch (error) {
+        setToast(purchaseIntentErrorMessage(error));
+      } finally {
+        setContactLoading(false);
+      }
+    });
+
   const message = contact
     ? `Olá! Vi ${contact.name} por ${money(
         price(contact),
@@ -711,7 +755,10 @@ export default function App() {
             )}
             data={catalogData}
             go={go}
-            contact={() => setContact(product)}
+            contact={() => handleProductContact(product, catalogData.stores.find(
+              (s) => s.id === product.store,
+            ))}
+            contactLoading={contactLoading}
             isFavorite={isFavorite(product.id)}
             onToggleFavorite={toggleFavorite}
           />
