@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from .models import (
     StatusIntencaoCompra,
+    StatusContestacaoCompra,
     StatusLoja,
     TipoTransacaoPontos,
     UserRole,
@@ -111,6 +112,51 @@ class ConsumerIntencaoCompraOut(BaseModel):
     loja_id: uuid.UUID
     status: StatusIntencaoCompra
     criado_em: datetime
+
+
+class ConsumerIntencaoProdutoOut(BaseModel):
+    id: uuid.UUID
+    titulo: str
+
+
+class ConsumerIntencaoLojaOut(BaseModel):
+    id: uuid.UUID
+    nome: str
+
+
+class ConsumerIntencaoContestacaoResumoOut(BaseModel):
+    id: uuid.UUID
+    status: StatusContestacaoCompra
+
+
+class ConsumerIntencaoListaOut(BaseModel):
+    id: uuid.UUID
+    codigo: str
+    produto: ConsumerIntencaoProdutoOut
+    loja: ConsumerIntencaoLojaOut
+    status: StatusIntencaoCompra
+    criado_em: datetime
+    decidido_em: datetime | None
+    contestacao: ConsumerIntencaoContestacaoResumoOut | None
+
+
+class ConsumerContestacaoEvidenciaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nome_arquivo: str
+    tipo_mime: str
+    tamanho_bytes: int
+    criado_em: datetime
+
+
+class ConsumerContestacaoOut(BaseModel):
+    id: uuid.UUID
+    intencao_id: uuid.UUID
+    motivo: str
+    status: StatusContestacaoCompra
+    criado_em: datetime
+    evidencias: list[ConsumerContestacaoEvidenciaOut]
 
 
 class LojistaIntencaoProdutoOut(BaseModel):

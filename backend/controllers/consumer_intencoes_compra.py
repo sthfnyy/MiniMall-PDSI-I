@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..auth import require_consumer
 from ..config.database import get_db
 from ..models import (
+    ContestacaoCompra,
     IntencaoCompra,
     Loja,
     Produto,
@@ -17,11 +18,73 @@ from ..models import (
     StatusIntencaoCompra,
 )
 from ..schemas import ConsumerIntencaoCompraCreate, ConsumerIntencaoCompraOut
+from ..schemas import (
+    ConsumerIntencaoContestacaoResumoOut,
+    ConsumerIntencaoListaOut,
+    ConsumerIntencaoLojaOut,
+    ConsumerIntencaoProdutoOut,
+)
 
 router = APIRouter(
     prefix="/consumidor/intencoes-compra",
     tags=["consumidor - intenções de compra"],
 )
+
+
+@router.get("", response_model=list[ConsumerIntencaoListaOut])
+async def listar_intencoes_compra(
+    profile: Profile = Depends(require_consumer),
+    db: AsyncSession = Depends(get_db),
+):
+    try:
+        result = await db.execute(
+            select(
+                IntencaoCompra,
+                Produto.titulo,
+                Loja.nome_loja,
+                ContestacaoCompra,
+            )
+            .join(Produto, Produto.id == IntencaoCompra.produto_id)
+            .join(Loja, Loja.id == IntencaoCompra.loja_id)
+            .outerjoin(
+                ContestacaoCompra,
+                ContestacaoCompra.intencao_id == IntencaoCompra.id,
+            )
+            .where(IntencaoCompra.consumidor_id == profile.id)
+            .order_by(IntencaoCompra.criado_em.desc())
+        )
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=500,
+            detail="Não foi possível consultar as intenções de compra",
+        )
+
+    return [
+        ConsumerIntencaoListaOut(
+            id=intencao.id,
+            codigo=intencao.codigo,
+            produto=ConsumerIntencaoProdutoOut(
+                id=intencao.produto_id,
+                titulo=produto_titulo,
+            ),
+            loja=ConsumerIntencaoLojaOut(
+                id=intencao.loja_id,
+                nome=loja_nome,
+            ),
+            status=intencao.status,
+            criado_em=intencao.criado_em,
+            decidido_em=intencao.decidido_em,
+            contestacao=(
+                ConsumerIntencaoContestacaoResumoOut(
+                    id=contestacao.id,
+                    status=contestacao.status,
+                )
+                if contestacao
+                else None
+            ),
+        )
+        for intencao, produto_titulo, loja_nome, contestacao in result.all()
+    ]
 
 
 async def gerar_codigo_unico(db: AsyncSession) -> str:
