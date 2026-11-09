@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 import {
   attachContestationToIntent,
+  contestationStatusInfo,
   createConsumerContestation,
   fetchConsumerPurchaseIntents,
   validateContestation,
@@ -88,4 +89,19 @@ test("rota protegida e acesso pelo perfil estão registrados", () => {
   assert.match(app, /route === "consumidor\/intencoes-compra"/);
   assert.match(app, /currentUser\?\.role === "consumidor"/);
   assert.match(profile, /Compras e contatos/);
+});
+
+test("status real da contestação é exibido ao consumidor", () => {
+  assert.deepEqual(contestationStatusInfo("aguardando_analise"), {
+    title: "Contestação enviada",
+    text: "Aguardando análise administrativa.",
+  });
+  assert.equal(contestationStatusInfo("aprovada").title, "Contestação aprovada");
+  assert.equal(contestationStatusInfo("reprovada").title, "Contestação reprovada");
+  for (const status of ["aprovada", "reprovada"]) {
+    assert.doesNotMatch(contestationStatusInfo(status).text, /Aguardando análise/);
+  }
+  const source = readFileSync(new URL("../views/consumer/PurchaseIntents.jsx", import.meta.url), "utf8");
+  assert.match(source, /contestationStatusInfo\(intent\.contestacao\.status\)/);
+  assert.doesNotMatch(source, /<p>Aguardando análise administrativa\.<\/p>/);
 });

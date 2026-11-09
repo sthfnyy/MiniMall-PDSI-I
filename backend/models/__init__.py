@@ -252,6 +252,11 @@ class ContestacaoCompra(Base):
         nullable=False,
     )
     criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    decidido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decidido_por: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("auth.users.id", ondelete="SET NULL")
+    )
+    observacao_admin: Mapped[str | None] = mapped_column(Text)
 
 
 class ContestacaoCompraEvidencia(Base):

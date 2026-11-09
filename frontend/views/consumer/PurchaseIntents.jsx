@@ -4,6 +4,7 @@ import { AlertTriangle, FileImage, RefreshCw, Scale, X } from "lucide-react";
 import { Empty, Modal } from "../../components/ui";
 import {
   attachContestationToIntent,
+  contestationStatusInfo,
   createConsumerContestation,
   fetchConsumerPurchaseIntents,
   validateContestation,
@@ -139,7 +140,10 @@ export default function PurchaseIntents({
                 {intent.contestacao ? (
                   <div className="empty-catalog-alert" role="status">
                     <Scale size={18} />
-                    <div><strong>Contestação enviada</strong><p>Aguardando análise administrativa.</p></div>
+                    <div>
+                      <strong>{contestationStatusInfo(intent.contestacao.status).title}</strong>
+                      <p>{contestationStatusInfo(intent.contestacao.status).text}</p>
+                    </div>
                   </div>
                 ) : canContest ? (
                   <div className="consumer-form-actions">

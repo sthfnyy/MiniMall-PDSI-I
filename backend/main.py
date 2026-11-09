@@ -9,6 +9,7 @@ from .schemas import CategoriaOut
 from .controllers import (
     auth_profile,
     admin_categorias,
+    admin_contestacoes,
     admin_lojas,
     admin_moderacao,
     admin_usuarios,
@@ -42,6 +43,7 @@ app.include_router(admin_lojas.router)
 app.include_router(admin_moderacao.router)
 app.include_router(admin_categorias.router)
 app.include_router(admin_usuarios.router)
+app.include_router(admin_contestacoes.router)
 app.include_router(consumer_avaliacoes.router)
 app.include_router(consumer_catalogo.router)
 app.include_router(consumer_favoritos.router)
