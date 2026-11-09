@@ -20,7 +20,14 @@ import {
   deleteCategory,
   moderateReview,
 } from "../services/admin.js";
-import { whatsappLink } from "../services/contact.js";
+import {
+  buildPurchaseContactMessage,
+  createPurchaseIntent,
+  createSingleFlightRunner,
+  purchaseIntentErrorMessage,
+  startPurchaseContact,
+  whatsappLink,
+} from "../services/contact.js";
 import {
   saveConsumerProfile,
   updateConsumerProfile,
@@ -256,6 +263,123 @@ test("contato codifica a mensagem e trata número não informado", () => {
     url.searchParams.get("text"),
     "Olá! Camisa R$ 129,90 #produto/1",
   );
+});
+
+test("intenção de contato envia produto e loja ao endpoint autenticado", async () => {
+  const calls = [];
+  const intent = { id: "intent-1", codigo: "MM-8F42" };
+  const result = await createPurchaseIntent("product-1", "store-1", async (...args) => {
+    calls.push(args);
+    return intent;
+  });
+
+  assert.equal(result, intent);
+  assert.equal(calls[0][0], "/consumidor/intencoes-compra");
+  assert.equal(calls[0][1].method, "POST");
+  assert.deepEqual(JSON.parse(calls[0][1].body), {
+    produto_id: "product-1",
+    loja_id: "store-1",
+  });
+});
+
+test("WhatsApp abre somente depois do sucesso e inclui código e mensagem codificada", async () => {
+  const events = [];
+  const result = await startPurchaseContact({
+    product: { id: "product-1", name: "Camisa Azul", priceLabel: "R$ 129,90" },
+    store: { id: "store-1", whatsapp: "55 89 99999-9999" },
+    origin: "http://127.0.0.1:5173",
+    request: async () => {
+      events.push("request");
+      return { id: "intent-1", codigo: "MM-8F42" };
+    },
+    openWindow: (url) => events.push(["open", url]),
+  });
+
+  assert.equal(events[0], "request");
+  assert.equal(events[1][0], "open");
+  assert.equal(result.status, "opened");
+  assert.match(result.message, /Código do contato: MM-8F42/);
+  assert.match(result.message, /Produto: Camisa Azul/);
+  assert.match(result.message, /MiniMall: http:\/\/127\.0\.0\.1:5173\/#produto\/product-1/);
+  assert.equal(new URL(result.url).searchParams.get("text"), result.message);
+});
+
+test("erro ao registrar intenção não abre o WhatsApp", async () => {
+  let opened = false;
+  await assert.rejects(
+    startPurchaseContact({
+      product: { id: "product-1", name: "Camisa", priceLabel: "R$ 99,90" },
+      store: { id: "store-1", whatsapp: "5589999999999" },
+      origin: "http://127.0.0.1:5173",
+      request: async () => { throw new Error("falha de rede"); },
+      openWindow: () => { opened = true; },
+    }),
+    /falha de rede/,
+  );
+  assert.equal(opened, false);
+});
+
+test("cliques simultâneos compartilham uma única intenção e abertura", async () => {
+  const run = createSingleFlightRunner();
+  let requests = 0;
+  let opens = 0;
+  let release;
+  const waiting = new Promise((resolve) => { release = resolve; });
+  const operation = () => startPurchaseContact({
+    product: { id: "product-1", name: "Camisa", priceLabel: "R$ 99,90" },
+    store: { id: "store-1", whatsapp: "5589999999999" },
+    origin: "http://127.0.0.1:5173",
+    request: async () => {
+      requests += 1;
+      await waiting;
+      return { codigo: "MM-1234" };
+    },
+    openWindow: () => { opens += 1; },
+  });
+
+  const first = run(operation);
+  const second = run(operation);
+  release();
+  await Promise.all([first, second]);
+  assert.equal(requests, 1);
+  assert.equal(opens, 1);
+});
+
+test("loja sem WhatsApp mantém aviso sem criar intenção", async () => {
+  let requested = false;
+  let opened = false;
+  const result = await startPurchaseContact({
+    product: { id: "product-1", name: "Camisa", priceLabel: "R$ 99,90" },
+    store: { id: "store-1", whatsapp: "" },
+    origin: "http://127.0.0.1:5173",
+    request: async () => { requested = true; },
+    openWindow: () => { opened = true; },
+  });
+
+  assert.equal(result.status, "missing_whatsapp");
+  assert.equal(requested, false);
+  assert.equal(opened, false);
+});
+
+test("mensagem de contato usa o formato solicitado", () => {
+  const message = buildPurchaseContactMessage({
+    productName: "Tênis",
+    priceLabel: "R$ 200,00",
+    code: "MM-AB12",
+    productUrl: "https://minimall.test/#produto/1",
+  });
+  assert.equal(
+    message,
+    "Olá! Vi o produto Tênis por R$ 200,00 no MiniMall e gostaria de saber mais sobre ele.\n\nCódigo do contato: MM-AB12\n\nProduto: Tênis\nMiniMall: https://minimall.test/#produto/1\n\nAguardo informações sobre disponibilidade e condições de compra.",
+  );
+});
+
+test("erros da intenção são traduzidos para mensagens compreensíveis", () => {
+  assert.match(purchaseIntentErrorMessage({ status: 401 }), /sessão expirou/i);
+  assert.match(purchaseIntentErrorMessage({ status: 404 }), /produto ou a loja/i);
+  assert.match(purchaseIntentErrorMessage({ status: 422 }), /validar este produto/i);
+  assert.match(purchaseIntentErrorMessage({ status: 500 }), /temporariamente indisponível/i);
+  assert.match(purchaseIntentErrorMessage(new Error("Failed to fetch")), /conexão/i);
 });
 test("cadastro local preserva validações e não armazena a senha em texto", async () => {
   const values = new Map();
