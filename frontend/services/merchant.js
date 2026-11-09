@@ -632,3 +632,83 @@ export async function uploadMerchantProductPhoto(file, request = apiRequest) {
     body: formData,
   });
 }
+
+export function normalizeReviewFromApi(review) {
+  if (!review) return null;
+
+  return {
+    id: review.id,
+    storeId: review.loja_id,
+    rating: Number(review.nota) || 0,
+    comment: review.comentario || "",
+    photo: review.foto_url || "",
+    date: review.criado_em,
+    consumerName: review.consumidor_nome || "Consumidor",
+    photos: Array.isArray(review.fotos) && review.fotos.length > 0
+      ? review.fotos.map((f) => ({
+          id: f.id,
+          url: f.url,
+          date: f.criado_em,
+        }))
+      : review.foto_url
+        ? [{ id: "main-photo", url: review.foto_url, date: review.criado_em }]
+        : [],
+  };
+}
+
+export async function fetchMerchantReviews(request = apiRequest) {
+  const response = await request("/lojista/avaliacoes");
+  if (!Array.isArray(response)) return [];
+  return response.map(normalizeReviewFromApi);
+}
+
+export function getStoreReviews(reviews = [], storeId) {
+  if (!storeId || !Array.isArray(reviews)) return [];
+  return reviews
+    .filter(
+      (r) =>
+        String(r.store) === String(storeId) ||
+        String(r.storeId) === String(storeId),
+    )
+    .map((r) => ({
+      id: r.id,
+      storeId: r.store || r.storeId,
+      rating: Number(r.rating || r.nota) || 0,
+      comment: r.comment ?? r.comentario ?? "",
+      photo: r.photo || r.foto_url || "",
+      date: r.date || r.criado_em,
+      consumerName: r.name || r.consumidor_nome || "Consumidor",
+      photos: Array.isArray(r.photos)
+        ? r.photos
+        : r.photo
+          ? [{ id: `photo-${r.id}`, url: r.photo }]
+          : [],
+    }));
+}
+
+export function calculateReviewsSummary(reviews = []) {
+  const total = reviews.length;
+  if (!total) {
+    return {
+      total: 0,
+      average: "0.0",
+      distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
+    };
+  }
+
+  const sum = reviews.reduce((acc, r) => acc + (Number(r.rating) || 0), 0);
+  const average = (sum / total).toFixed(1);
+
+  const distribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+  for (const r of reviews) {
+    const star = Math.min(5, Math.max(1, Math.round(Number(r.rating) || 0)));
+    distribution[star] = (distribution[star] || 0) + 1;
+  }
+
+  return {
+    total,
+    average,
+    distribution,
+  };
+}
+
