@@ -253,8 +253,21 @@ test("métricas distinguem lojas totais, pendências e usuários engajados", () 
   assert.equal(m.engagement, 50);
   assert.equal(m.products, 6);
 });
-test("contato codifica a mensagem e trata número não informado", () => {
+test("contato normaliza números brasileiros e rejeita ausentes ou inválidos", () => {
   assert.equal(whatsappLink("", "x"), null);
+  assert.equal(whatsappLink("123456789", "x"), null);
+  assert.equal(whatsappLink("12345678901234", "x"), null);
+
+  const cases = [
+    ["8999999999", "558999999999"],
+    ["89999999999", "5589999999999"],
+    ["558999999999", "558999999999"],
+    ["5589999999999", "5589999999999"],
+  ];
+  for (const [input, expected] of cases) {
+    assert.equal(new URL(whatsappLink(input, "x")).pathname, `/${expected}`);
+  }
+
   const url = new URL(
     whatsappLink("55 89 99999-9999", "Olá! Camisa R$ 129,90 #produto/1"),
   );
@@ -284,11 +297,13 @@ test("intenção de contato envia produto e loja ao endpoint autenticado", async
 
 test("WhatsApp abre somente depois do sucesso e inclui código e mensagem codificada", async () => {
   const events = [];
+  const calls = [];
   const result = await startPurchaseContact({
     product: { id: "product-1", name: "Camisa Azul", priceLabel: "R$ 129,90" },
-    store: { id: "store-1", whatsapp: "55 89 99999-9999" },
+    store: { id: "store-1", whatsapp: "89 99999-9999" },
     origin: "http://127.0.0.1:5173",
-    request: async () => {
+    request: async (...args) => {
+      calls.push(args);
       events.push("request");
       return { id: "intent-1", codigo: "MM-8F42" };
     },
@@ -297,11 +312,18 @@ test("WhatsApp abre somente depois do sucesso e inclui código e mensagem codifi
 
   assert.equal(events[0], "request");
   assert.equal(events[1][0], "open");
+  assert.equal(calls[0][0], "/consumidor/intencoes-compra");
+  assert.deepEqual(JSON.parse(calls[0][1].body), {
+    produto_id: "product-1",
+    loja_id: "store-1",
+  });
   assert.equal(result.status, "opened");
   assert.match(result.message, /Código do contato: MM-8F42/);
   assert.match(result.message, /Produto: Camisa Azul/);
   assert.match(result.message, /MiniMall: http:\/\/127\.0\.0\.1:5173\/#produto\/product-1/);
-  assert.equal(new URL(result.url).searchParams.get("text"), result.message);
+  const whatsappUrl = new URL(result.url);
+  assert.equal(whatsappUrl.pathname, "/5589999999999");
+  assert.equal(whatsappUrl.searchParams.get("text"), result.message);
 });
 
 test("erro ao registrar intenção não abre o WhatsApp", async () => {
@@ -351,6 +373,22 @@ test("loja sem WhatsApp mantém aviso sem criar intenção", async () => {
   const result = await startPurchaseContact({
     product: { id: "product-1", name: "Camisa", priceLabel: "R$ 99,90" },
     store: { id: "store-1", whatsapp: "" },
+    origin: "http://127.0.0.1:5173",
+    request: async () => { requested = true; },
+    openWindow: () => { opened = true; },
+  });
+
+  assert.equal(result.status, "missing_whatsapp");
+  assert.equal(requested, false);
+  assert.equal(opened, false);
+});
+
+test("WhatsApp inválido não cria intenção nem abre janela", async () => {
+  let requested = false;
+  let opened = false;
+  const result = await startPurchaseContact({
+    product: { id: "product-1", name: "Camisa", priceLabel: "R$ 99,90" },
+    store: { id: "store-1", whatsapp: "12345" },
     origin: "http://127.0.0.1:5173",
     request: async () => { requested = true; },
     openWindow: () => { opened = true; },
