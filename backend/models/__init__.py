@@ -53,6 +53,12 @@ class StatusIntencaoCompra(str, enum.Enum):
     compra_nao_reconhecida = "compra_nao_reconhecida"
 
 
+class StatusContestacaoCompra(str, enum.Enum):
+    aguardando_analise = "aguardando_analise"
+    aprovada = "aprovada"
+    reprovada = "reprovada"
+
+
 class Profile(Base):
     __tablename__ = "profiles"
 
@@ -224,6 +230,43 @@ class IntencaoCompra(Base):
     decidido_por: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("auth.users.id", ondelete="SET NULL")
     )
+
+
+class ContestacaoCompra(Base):
+    __tablename__ = "contestacoes_compra"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    intencao_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("intencoes_compra.id", ondelete="RESTRICT"),
+        nullable=False,
+        unique=True,
+    )
+    consumidor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("auth.users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    motivo: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[StatusContestacaoCompra] = mapped_column(
+        Enum(StatusContestacaoCompra, name="status_contestacao_compra", schema="public"),
+        default=StatusContestacaoCompra.aguardando_analise,
+        nullable=False,
+    )
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class ContestacaoCompraEvidencia(Base):
+    __tablename__ = "contestacao_compra_evidencias"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    contestacao_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("contestacoes_compra.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    storage_path: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    nome_arquivo: Mapped[str] = mapped_column(Text, nullable=False)
+    tipo_mime: Mapped[str] = mapped_column(Text, nullable=False)
+    tamanho_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    criado_em: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class Avaliacao(Base):

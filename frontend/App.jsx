@@ -30,6 +30,7 @@ import ConsumerProfile from "./views/consumer/ConsumerProfile";
 import ConsumerFavorites from "./views/consumer/ConsumerFavorites";
 import ConsumerPoints from "./views/consumer/ConsumerPoints";
 import ConsumerReviews from "./views/consumer/ConsumerReviews";
+import ConsumerPurchaseIntents from "./views/consumer/PurchaseIntents";
 import ReviewForm from "./views/consumer/ReviewForm";
 import StoreSettings from "./views/merchant/StoreSettings";
 import ProductList from "./views/merchant/ProductList";
@@ -823,6 +824,9 @@ export default function App() {
               onReviews={() =>
                 go("consumidor/avaliacoes")
               }
+              onPurchaseIntents={() =>
+                go("consumidor/intencoes-compra")
+              }
               onLogout={handleLogout}
               useRealApi={Boolean(authSession?.access_token)}
               onUpdate={async (updatedUser) => {
@@ -946,6 +950,22 @@ export default function App() {
                   Entrar
                 </button>
               }
+            />
+          ))}
+
+        {/* INTENÇÕES E CONTESTAÇÕES DO CONSUMIDOR */}
+        {route === "consumidor/intencoes-compra" &&
+          (currentUser?.role === "consumidor" ? (
+            <ConsumerPurchaseIntents
+              go={go}
+              notify={setToast}
+              useRealApi={Boolean(authSession?.access_token)}
+            />
+          ) : (
+            <Empty
+              title="Acesso restrito"
+              text="Entre com uma conta de consumidor."
+              action={<button className="primary" onClick={() => go("login")}>Entrar</button>}
             />
           ))}
 
@@ -1172,6 +1192,7 @@ export default function App() {
           "consumidor/favoritos",
           "consumidor/pontos",
           "consumidor/avaliacoes",
+          "consumidor/intencoes-compra",
           "lojista",
           "lojista/produtos",
           "lojista/produtos/novo",

@@ -9,6 +9,7 @@ import {
   Coins,
   Star,
   LogOut,
+  FileWarning,
 } from "lucide-react";
 import { Field } from "../../components/ui";
 
@@ -18,6 +19,7 @@ export default function ConsumerProfile({
   onFavorites,
   onPoints,
   onReviews,
+  onPurchaseIntents,
   onLogout,
   useRealApi = false,
 }) {
@@ -186,6 +188,15 @@ export default function ConsumerProfile({
             >
               <Star size={17} />
               Minhas avaliações
+            </button>
+
+            <button
+              className="secondary"
+              type="button"
+              onClick={onPurchaseIntents}
+            >
+              <FileWarning size={17} />
+              Compras e contatos
             </button>
 
             {onLogout && (

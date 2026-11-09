@@ -16,6 +16,7 @@ from .controllers import (
     consumer_catalogo,
     consumer_favoritos,
     consumer_intencoes_compra,
+    consumer_contestacoes,
     consumer_perfil,
     consumer_pontos,
     lojista_loja,
@@ -45,6 +46,7 @@ app.include_router(consumer_avaliacoes.router)
 app.include_router(consumer_catalogo.router)
 app.include_router(consumer_favoritos.router)
 app.include_router(consumer_intencoes_compra.router)
+app.include_router(consumer_contestacoes.router)
 app.include_router(consumer_perfil.router)
 app.include_router(consumer_pontos.router)
 app.include_router(lojista_loja.router)
