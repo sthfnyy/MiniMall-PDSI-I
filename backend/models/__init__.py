@@ -47,6 +47,10 @@ class TipoTransacaoPontos(str, enum.Enum):
     resgate = "resgate"
 
 
+class StatusIntencaoCompra(str, enum.Enum):
+    contato_realizado = "contato_realizado"
+
+
 class Profile(Base):
     __tablename__ = "profiles"
 
@@ -177,6 +181,38 @@ class Favorito(Base):
     produto_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("produtos.id", ondelete="CASCADE"),
         primary_key=True,
+    )
+    criado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+
+
+class IntencaoCompra(Base):
+    __tablename__ = "intencoes_compra"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+    consumidor_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("auth.users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    loja_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("lojas.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    produto_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("produtos.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    codigo: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    status: Mapped[StatusIntencaoCompra] = mapped_column(
+        Enum(
+            StatusIntencaoCompra,
+            name="status_intencao_compra",
+            schema="public",
+        ),
+        default=StatusIntencaoCompra.contato_realizado,
+        nullable=False,
     )
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
