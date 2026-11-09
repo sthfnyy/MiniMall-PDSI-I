@@ -49,6 +49,8 @@ class TipoTransacaoPontos(str, enum.Enum):
 
 class StatusIntencaoCompra(str, enum.Enum):
     contato_realizado = "contato_realizado"
+    compra_confirmada = "compra_confirmada"
+    compra_nao_reconhecida = "compra_nao_reconhecida"
 
 
 class Profile(Base):
@@ -217,6 +219,10 @@ class IntencaoCompra(Base):
     criado_em: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+    )
+    decidido_em: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decidido_por: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("auth.users.id", ondelete="SET NULL")
     )
 
 

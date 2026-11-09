@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -110,6 +111,46 @@ class ConsumerIntencaoCompraOut(BaseModel):
     loja_id: uuid.UUID
     status: StatusIntencaoCompra
     criado_em: datetime
+
+
+class LojistaIntencaoProdutoOut(BaseModel):
+    id: uuid.UUID
+    titulo: str
+
+
+class LojistaIntencaoConsumidorOut(BaseModel):
+    id: uuid.UUID
+    nome: str
+
+
+class LojistaIntencaoCompraOut(BaseModel):
+    id: uuid.UUID
+    codigo: str
+    produto: LojistaIntencaoProdutoOut
+    consumidor: LojistaIntencaoConsumidorOut
+    loja_id: uuid.UUID
+    status: StatusIntencaoCompra
+    criado_em: datetime
+    decidido_em: datetime | None
+
+
+class LojistaIntencaoCompraUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["compra_confirmada", "compra_nao_reconhecida"]
+
+
+class LojistaIntencaoCompraDecisaoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    codigo: str
+    produto_id: uuid.UUID
+    loja_id: uuid.UUID
+    status: StatusIntencaoCompra
+    criado_em: datetime
+    decidido_em: datetime
+    decidido_por: uuid.UUID
 
 
 class CategoriaOut(BaseModel):
