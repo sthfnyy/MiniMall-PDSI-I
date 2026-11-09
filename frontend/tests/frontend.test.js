@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { seed, rating } from "../services/catalog.js";
 import { searchProducts } from "../services/search.js";
 import {
@@ -59,6 +60,13 @@ import {
   createStoreProduct,
 } from "../services/merchant.js";
 const fresh = () => structuredClone(seed);
+
+test("página da loja recebe o modo de API real do catálogo", () => {
+  const appSource = readFileSync(new URL("../App.jsx", import.meta.url), "utf8");
+  const storePage = appSource.match(/<StorePage[\s\S]*?\/>/)?.[0] || "";
+
+  assert.match(storePage, /useRealApi=\{useRealCatalog\}/);
+});
 
 const realCatalogPayload = () => ({
   lojas: [{
