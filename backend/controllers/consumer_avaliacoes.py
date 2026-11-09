@@ -10,12 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import require_consumer
 from ..config.database import get_db
-from ..models import Avaliacao, AvaliacaoFoto, Loja, Profile
+from ..models import Avaliacao, AvaliacaoFoto, Loja, Profile, StatusLoja
 from ..schemas import (
     ConsumerAvaliacaoCreate,
     ConsumerAvaliacaoFotoOut,
     ConsumerAvaliacaoOut,
     ConsumerAvaliacaoUpdate,
+    LojistaAvaliacaoFotoOut,
+    LojistaAvaliacaoOut,
 )
 from ..services.review_storage import (
     ReviewStorage,
@@ -37,6 +39,67 @@ router = APIRouter(
     prefix="/consumidor/avaliacoes",
     tags=["consumidor - avaliações"],
 )
+
+
+@router.get("/loja/{loja_id}", response_model=list[LojistaAvaliacaoOut])
+async def listar_avaliacoes_da_loja(
+    loja_id: uuid.UUID,
+    _consumer: Profile = Depends(require_consumer),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lista as avaliações de uma loja aprovada exibida no catálogo do consumidor."""
+    try:
+        result = await db.execute(
+            select(Avaliacao, Profile.nome_completo)
+            .join(Loja, Loja.id == Avaliacao.loja_id)
+            .outerjoin(Profile, Avaliacao.usuario_id == Profile.id)
+            .where(
+                Avaliacao.loja_id == loja_id,
+                Loja.status == StatusLoja.aprovada,
+            )
+            .order_by(Avaliacao.criado_em.desc())
+        )
+        rows = result.all()
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Não foi possível consultar as avaliações da loja",
+        )
+
+    if not rows:
+        return []
+
+    try:
+        fotos_result = await db.execute(
+            select(AvaliacaoFoto)
+            .where(AvaliacaoFoto.avaliacao_id.in_([row[0].id for row in rows]))
+            .order_by(AvaliacaoFoto.criado_em.asc())
+        )
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Não foi possível consultar as fotos das avaliações",
+        )
+
+    fotos_por_avaliacao: dict[uuid.UUID, list[LojistaAvaliacaoFotoOut]] = {}
+    for foto in fotos_result.scalars().all():
+        fotos_por_avaliacao.setdefault(foto.avaliacao_id, []).append(
+            LojistaAvaliacaoFotoOut.model_validate(foto)
+        )
+
+    return [
+        LojistaAvaliacaoOut(
+            id=avaliacao.id,
+            loja_id=avaliacao.loja_id,
+            nota=avaliacao.nota,
+            comentario=avaliacao.comentario,
+            foto_url=avaliacao.foto_url,
+            criado_em=avaliacao.criado_em,
+            consumidor_nome=nome_completo or "Consumidor",
+            fotos=fotos_por_avaliacao.get(avaliacao.id, []),
+        )
+        for avaliacao, nome_completo in rows
+    ]
 
 
 @router.get("", response_model=list[ConsumerAvaliacaoOut])

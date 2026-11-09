@@ -40,6 +40,8 @@ import {
   getUserReviews,
   isBackendStoreId,
   listConsumerReviews,
+  listStoreReviews,
+  normalizeStoreReview,
   MAX_REVIEW_PHOTO_SIZE,
   removeReviewPhoto,
   publishReview,
@@ -910,6 +912,51 @@ test("API de avaliações lista somente pelo endpoint autenticado do consumidor"
 
   assert.deepEqual(await listConsumerReviews(request), reviews);
   assert.deepEqual(calls, [["/consumidor/avaliacoes"]]);
+});
+
+test("API lista e normaliza avaliações da loja selecionada", async () => {
+  const storeId = "55c27b92-8108-4fb2-9ad0-28fc2441548c";
+  const calls = [];
+  const reviews = await listStoreReviews(storeId, async (...args) => {
+    calls.push(args);
+    return [{
+      id: "review-1",
+      loja_id: storeId,
+      nota: 5,
+      comentario: "Excelente",
+      consumidor_nome: "Ana",
+      criado_em: "2026-11-09T12:00:00Z",
+      foto_url: "",
+      fotos: [{ id: "photo-1", url: "https://cdn.invalid/photo.jpg" }],
+    }];
+  });
+
+  assert.deepEqual(calls, [[`/consumidor/avaliacoes/loja/${storeId}`]]);
+  assert.deepEqual(reviews[0], {
+    id: "review-1",
+    store: storeId,
+    name: "Ana",
+    rating: 5,
+    comment: "Excelente",
+    photo: "",
+    photos: [{ id: "photo-1", url: "https://cdn.invalid/photo.jpg" }],
+    date: "2026-11-09T12:00:00Z",
+  });
+});
+
+test("normalização da avaliação pública preserva o formato demo", () => {
+  const review = normalizeStoreReview({
+    id: 1,
+    store: 2,
+    name: "Maria",
+    rating: 4,
+    comment: "Boa loja",
+    photo: "/foto.jpg",
+    date: "2026-11-09",
+  });
+  assert.equal(review.store, 2);
+  assert.equal(review.name, "Maria");
+  assert.deepEqual(review.photos, [{ id: "legacy-1", url: "/foto.jpg" }]);
 });
 
 test("API cria avaliação sem enviar usuário ou pontuação no payload", async () => {

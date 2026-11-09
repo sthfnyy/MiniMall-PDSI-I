@@ -97,6 +97,27 @@ export async function listConsumerReviews(request = apiRequest) {
   return request("/consumidor/avaliacoes");
 }
 
+export function normalizeStoreReview(review) {
+  if (!review) return null;
+
+  return {
+    id: review.id,
+    store: review.store ?? review.storeId ?? review.loja_id,
+    name: review.name ?? review.consumerName ?? review.consumidor_nome ?? "Consumidor",
+    rating: Number(review.rating ?? review.nota) || 0,
+    comment: review.comment ?? review.comentario ?? "",
+    photo: review.photo ?? review.foto_url ?? "",
+    photos: getReviewPhotos(review),
+    date: review.date ?? review.criado_em,
+  };
+}
+
+export async function listStoreReviews(storeId, request = apiRequest) {
+  const response = await request(`/consumidor/avaliacoes/loja/${storeId}`);
+  if (!Array.isArray(response)) return [];
+  return response.map(normalizeStoreReview).filter(Boolean);
+}
+
 export async function createConsumerReview(values, request = apiRequest) {
   return request("/consumidor/avaliacoes", {
     method: "POST",

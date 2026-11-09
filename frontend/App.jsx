@@ -670,6 +670,7 @@ export default function App() {
             onStore={onStore}
             isFavorite={isFavorite}
             onToggleFavorite={toggleFavorite}
+            useRealApi={useRealCatalog}
           />
         )}
 

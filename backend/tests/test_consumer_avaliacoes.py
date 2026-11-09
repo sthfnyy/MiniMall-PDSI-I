@@ -32,6 +32,9 @@ class FakeResult:
     def scalars(self):
         return FakeScalars(self.scalar_values)
 
+    def all(self):
+        return self.scalar_values
+
 
 class FakeSession:
     def __init__(self, results=None, fail_commit=None):
@@ -130,6 +133,41 @@ class ConsumerAvaliacoesTestCase(unittest.TestCase):
         self.autenticar(session=FakeSession([FakeResult(scalars=[])]))
 
         response = self.client.get("/consumidor/avaliacoes")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+    def test_get_da_loja_retorna_avaliacoes_de_loja_aprovada(self):
+        loja_id = uuid.uuid4()
+        avaliacao = criar_avaliacao()
+        avaliacao.loja_id = loja_id
+        foto = SimpleNamespace(
+            id=uuid.uuid4(),
+            avaliacao_id=avaliacao.id,
+            url="https://cdn.invalid/foto.jpg",
+            criado_em=datetime(2026, 10, 12, 12, 1, tzinfo=UTC),
+        )
+        session = FakeSession([
+            FakeResult(scalars=[(avaliacao, "Maria")]),
+            FakeResult(scalars=[foto]),
+        ])
+        self.autenticar(session=session)
+
+        response = self.client.get(f"/consumidor/avaliacoes/loja/{loja_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()[0]["loja_id"], str(loja_id))
+        self.assertEqual(response.json()[0]["consumidor_nome"], "Maria")
+        self.assertEqual(response.json()[0]["fotos"][0]["id"], str(foto.id))
+        statement = session.statements[0]
+        self.assertIn(loja_id, statement.compile().params.values())
+        self.assertIn("lojas.status", str(statement))
+
+    def test_get_da_loja_sem_avaliacoes_retorna_lista_vazia(self):
+        session = FakeSession([FakeResult(scalars=[])])
+        self.autenticar(session=session)
+
+        response = self.client.get(f"/consumidor/avaliacoes/loja/{uuid.uuid4()}")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), [])
