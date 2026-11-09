@@ -4,7 +4,12 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .models import StatusLoja, TipoTransacaoPontos, UserRole
+from .models import (
+    StatusIntencaoCompra,
+    StatusLoja,
+    TipoTransacaoPontos,
+    UserRole,
+)
 
 
 class LojaOut(BaseModel):
@@ -87,6 +92,24 @@ class ProdutoFavoritoOut(BaseModel):
 class FavoritoOut(BaseModel):
     criado_em: datetime
     produto: ProdutoFavoritoOut
+
+
+class ConsumerIntencaoCompraCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    produto_id: uuid.UUID
+    loja_id: uuid.UUID
+
+
+class ConsumerIntencaoCompraOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    codigo: str
+    produto_id: uuid.UUID
+    loja_id: uuid.UUID
+    status: StatusIntencaoCompra
+    criado_em: datetime
 
 
 class CategoriaOut(BaseModel):
