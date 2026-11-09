@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Modal, Field } from "../../components/ui";
 import {
@@ -116,6 +115,7 @@ export default function Moderation({ notify }) {
   // Abrir modal de exclusão de avaliação
   function openDeleteReviewModal(review) {
     setAction({ kind: "review", item: review });
+    setReason("");
     setActionError("");
   }
 
@@ -127,6 +127,16 @@ export default function Moderation({ notify }) {
 
     if (action.kind === "store" && !reason.trim()) {
       setActionError("Informe o motivo da rejeição.");
+      return;
+    }
+
+    if (action.kind === "review" && !reason.trim()) {
+      setActionError("Informe o motivo da remoção.");
+      return;
+    }
+
+    if (reason.trim().length < 3) {
+      setActionError("O motivo deve ter pelo menos 3 caracteres.");
       return;
     }
 
@@ -143,7 +153,7 @@ export default function Moderation({ notify }) {
 
         notify("Cadastro rejeitado com sucesso.");
       } else {
-        await deleteAdminReview(action.item.id);
+        await deleteAdminReview(action.item.id, reason.trim());
 
         setReviews((prev) =>
           prev.filter((r) => r.id !== action.item.id)
@@ -317,6 +327,20 @@ export default function Moderation({ notify }) {
                   value={reason}
                   disabled={processing}
                   onChange={(e) => setReason(e.target.value)}
+                />
+              </Field>
+            )}
+
+            {action.kind === "review" && (
+              <Field label="Motivo da remoção">
+                <textarea
+                  name="reason"
+                  required
+                  minLength={3}
+                  value={reason}
+                  disabled={processing}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Informe o motivo da remoção."
                 />
               </Field>
             )}

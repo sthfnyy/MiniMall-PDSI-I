@@ -489,3 +489,11 @@ class LojistaAvaliacaoOut(BaseModel):
     consumidor_nome: str
     fotos: list[LojistaAvaliacaoFotoOut] = Field(default_factory=list)
 
+class RegistroModeracaoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    administrador_id: uuid.UUID
+    avaliacao_id: uuid.UUID
+    motivo: str
+    criado_em: datetime
