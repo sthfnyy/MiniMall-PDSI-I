@@ -1,7 +1,10 @@
 import { apiRequest } from "./api.js";
 
 export function whatsappLink(number, message) {
-  const digits = String(number || "").replace(/\D/g, "");
+  let digits = String(number || "").replace(/\D/g, "");
+  if (/^\d{10,11}$/.test(digits)) {
+    digits = `55${digits}`;
+  }
   if (!/^\d{12,13}$/.test(digits)) return null;
   return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
