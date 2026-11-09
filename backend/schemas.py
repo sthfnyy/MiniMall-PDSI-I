@@ -159,6 +159,86 @@ class ConsumerContestacaoOut(BaseModel):
     evidencias: list[ConsumerContestacaoEvidenciaOut]
 
 
+class AdminPessoaResumoOut(BaseModel):
+    id: uuid.UUID
+    nome: str
+
+
+class AdminContestacaoListaOut(BaseModel):
+    id: uuid.UUID
+    codigo: str
+    consumidor_nome: str
+    loja_nome: str
+    produto_nome: str
+    status: StatusContestacaoCompra
+    criado_em: datetime
+    decidido_em: datetime | None
+
+
+class AdminContestacaoIntencaoOut(BaseModel):
+    id: uuid.UUID
+    codigo: str
+    status: StatusIntencaoCompra
+    criado_em: datetime
+    decidido_em: datetime | None
+    decidido_por: AdminPessoaResumoOut | None
+
+
+class AdminContestacaoProdutoOut(BaseModel):
+    id: uuid.UUID
+    titulo: str
+
+
+class AdminContestacaoEvidenciaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    nome_arquivo: str
+    tipo_mime: str
+    tamanho_bytes: int
+    criado_em: datetime
+
+
+class AdminContestacaoDetalheOut(BaseModel):
+    id: uuid.UUID
+    status: StatusContestacaoCompra
+    motivo: str
+    criado_em: datetime
+    decidido_em: datetime | None
+    decidido_por: AdminPessoaResumoOut | None
+    observacao_admin: str | None
+    intencao: AdminContestacaoIntencaoOut
+    produto: AdminContestacaoProdutoOut
+    loja: AdminPessoaResumoOut
+    consumidor: AdminPessoaResumoOut
+    evidencias: list[AdminContestacaoEvidenciaOut]
+
+
+class AdminContestacaoDecisaoIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["aprovada", "reprovada"]
+    observacao_admin: str | None = None
+
+    @field_validator("observacao_admin")
+    @classmethod
+    def normalizar_observacao(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            return None
+        if not 3 <= len(value) <= 1000:
+            raise ValueError("A observação deve ter entre 3 e 1000 caracteres")
+        return value
+
+    @model_validator(mode="after")
+    def exigir_observacao_na_reprovacao(self):
+        if self.status == "reprovada" and not self.observacao_admin:
+            raise ValueError("Informe a observação para reprovar a contestação")
+        return self
+
+
 class LojistaIntencaoProdutoOut(BaseModel):
     id: uuid.UUID
     titulo: str

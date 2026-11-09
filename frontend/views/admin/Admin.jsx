@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { PageTitle } from "../../components/ui";
 import Dashboard from "./Dashboard";
 import Moderation from "./Moderation";
+import PurchaseContests from "./PurchaseContests";
 import Registrations from "./Registrations";
 export default function Admin(props) {
   const [page, setPage] = useState("dashboard");
@@ -9,6 +10,7 @@ export default function Admin(props) {
     ["dashboard", "Dados da Plataforma"],
     ["moderation", "Moderação"],
     ["registrations", "Gestão de Cadastros"],
+    ["purchase-contests", "Contestações de compras"],
   ];
   return (
     <>
@@ -31,6 +33,8 @@ export default function Admin(props) {
         <Dashboard {...props} />
       ) : page === "moderation" ? (
         <Moderation {...props} />
+      ) : page === "purchase-contests" ? (
+        <PurchaseContests notify={props.notify} />
       ) : (
         <Registrations {...props} />
       )}

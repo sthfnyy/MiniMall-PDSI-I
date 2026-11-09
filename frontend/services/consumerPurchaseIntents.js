@@ -62,3 +62,25 @@ export function attachContestationToIntent(intents, intentId, contestation) {
       : intent,
   );
 }
+
+const CONTESTATION_STATUS = {
+  aguardando_analise: {
+    title: "Contestação enviada",
+    text: "Aguardando análise administrativa.",
+  },
+  aprovada: {
+    title: "Contestação aprovada",
+    text: "A administração analisou sua contestação e a aprovou.",
+  },
+  reprovada: {
+    title: "Contestação reprovada",
+    text: "A administração analisou sua contestação e a reprovou.",
+  },
+};
+
+export function contestationStatusInfo(status) {
+  return CONTESTATION_STATUS[status] || {
+    title: "Contestação registrada",
+    text: "Acompanhe aqui a análise da sua contestação.",
+  };
+}

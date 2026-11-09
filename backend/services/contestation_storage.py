@@ -53,6 +53,20 @@ class ContestationStorage:
         except (httpx.HTTPError, ContestationStorageError) as error:
             raise ContestationStorageError("Não foi possível remover a evidência") from error
 
+    async def download(self, object_path: str) -> tuple[bytes, str | None]:
+        """Baixa o objeto privado via service role; retorna conteúdo e Content-Type."""
+        encoded_path = quote(object_path, safe="/")
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(
+                    f"{self.supabase_url}/storage/v1/object/authenticated/{BUCKET_NAME}/{encoded_path}",
+                    headers=self._headers(),
+                )
+                response.raise_for_status()
+        except (httpx.HTTPError, ContestationStorageError) as error:
+            raise ContestationStorageError("Não foi possível obter a evidência") from error
+        return response.content, response.headers.get("content-type")
+
 
 def get_contestation_storage() -> ContestationStorage:
     return ContestationStorage()
