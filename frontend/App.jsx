@@ -12,6 +12,7 @@ import {
   X,
   MessageCircle,
   Package,
+  Star,
 } from "lucide-react";
 
 import Home from "./views/Home";
@@ -28,6 +29,7 @@ import ReviewForm from "./views/consumer/ReviewForm";
 import StoreSettings from "./views/merchant/StoreSettings";
 import ProductList from "./views/merchant/ProductList";
 import ProductForm from "./views/merchant/ProductForm";
+import StoreReviews from "./views/merchant/StoreReviews";
 
 import StoreCard from "./components/StoreCard";
 import { Modal, Empty } from "./components/ui";
@@ -475,6 +477,7 @@ export default function App() {
       ? [
           ["lojista", "Minha loja", Store],
           ["lojista/produtos", "Meus produtos", Package],
+          ["lojista/avaliacoes", "Avaliações", Star],
         ]
       : []),
 
@@ -1066,6 +1069,31 @@ export default function App() {
             />
           ))}
 
+        {/* AVALIAÇÕES DA LOJA (PAINEL DO LOJISTA) */}
+        {route === "lojista/avaliacoes" &&
+          (currentUser?.role === "lojista" ? (
+            <StoreReviews
+              user={currentUser}
+              data={data}
+              go={go}
+              notify={setToast}
+              useRealApi={Boolean(authSession?.access_token)}
+            />
+          ) : (
+            <Empty
+              title="Acesso restrito"
+              text="Entre com uma conta de lojista para consultar as avaliações recebidas."
+              action={
+                <button
+                  className="primary"
+                  onClick={() => go("login")}
+                >
+                  Entrar
+                </button>
+              }
+            />
+          ))}
+
         {/* ROTA NÃO ENCONTRADA */}
         {![
           "inicio",
@@ -1081,6 +1109,7 @@ export default function App() {
           "lojista",
           "lojista/produtos",
           "lojista/produtos/novo",
+          "lojista/avaliacoes",
         ].includes(route) &&
           !route.startsWith("lojista/produtos/editar/") &&
           !product &&

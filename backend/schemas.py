@@ -467,3 +467,25 @@ class ProdutoLojistaOut(BaseModel):
     atualizado_em: datetime
     fotos: list[ProdutoFotoOut] = Field(default_factory=list)
     variacoes: list[VariacaoProdutoOut] = Field(default_factory=list)
+
+
+class LojistaAvaliacaoFotoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    url: str
+    criado_em: datetime
+
+
+class LojistaAvaliacaoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    loja_id: uuid.UUID
+    nota: int
+    comentario: str | None = None
+    foto_url: str | None = None
+    criado_em: datetime
+    consumidor_nome: str
+    fotos: list[LojistaAvaliacaoFotoOut] = Field(default_factory=list)
+
