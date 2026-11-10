@@ -400,3 +400,25 @@ class VariacaoProduto(Base):
     preco: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     sku: Mapped[str | None] = mapped_column(Text)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+class RegistroModeracao(Base):
+    __tablename__ = "registros_moderacao"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True)
+
+    administrador_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("auth.users.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    avaliacao_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        nullable=False,
+    )
+
+    motivo: Mapped[str] = mapped_column(Text, nullable=False)
+
+    criado_em: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )

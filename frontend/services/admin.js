@@ -54,9 +54,14 @@ export async function getAdminReviews() {
   return apiRequest("/admin/moderacao/avaliacoes");
 }
 
-export async function deleteAdminReview(id) {
+export async function getModerationHistory() {
+  return apiRequest("/admin/moderacao/historico");
+}
+
+export async function deleteAdminReview(id, motivo) {
   return apiRequest(`/admin/moderacao/avaliacoes/${id}`, {
     method: "DELETE",
+    body: JSON.stringify({ motivo }),
   });
 }
 
